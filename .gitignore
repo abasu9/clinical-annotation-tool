@@ -1,0 +1,15 @@
+node_modules
+dist
+.env
+.env.local
+.env.*.local
+
+.DS_Store
+*.log
+*.tsbuildinfo
+
+# Generated dataset artifacts and any real (non-template) data
+**/*.prepared.jsonl
+/Dataset/
+sample_data/data_sample_100.*
+
