@@ -13,3 +13,9 @@ dist
 /Dataset/
 sample_data/data_sample_100.*
 
+
+# wrangler files
+.wrangler
+.dev.vars*
+!.dev.vars.example
+!.env.example
