@@ -88,6 +88,19 @@ export default function AnnotationsViewer({
     });
   };
 
+  const allExpanded =
+    filtered.length > 0 && filtered.every((r) => expanded.has(`${r.post_id}__${r.annotator_id}`));
+
+  const toggleAll = () => {
+    if (allExpanded) {
+      setExpanded(new Set());
+    } else {
+      const next = new Set<string>();
+      filtered.forEach((r) => next.add(`${r.post_id}__${r.annotator_id}`));
+      setExpanded(next);
+    }
+  };
+
   const downloadFiltered = (fmt: "csv" | "jsonl") => {
     if (filtered.length === 0) return;
     const slug = slugify(datasetName);
@@ -190,9 +203,19 @@ export default function AnnotationsViewer({
               className="w-full border border-slate-300 rounded px-2 py-1.5 text-sm"
             />
           </div>
-          <div className="text-xs text-slate-500 ml-auto">
-            Showing <span className="font-medium">{filtered.length}</span> of{" "}
-            {rows.length}
+          <div className="ml-auto flex items-center gap-3">
+            <button
+              onClick={toggleAll}
+              disabled={filtered.length === 0}
+              className="px-2.5 py-1.5 text-xs border border-slate-300 rounded hover:bg-slate-100 disabled:opacity-40"
+              title="Toggle full text for every visible row"
+            >
+              {allExpanded ? "Collapse all" : "Expand all"}
+            </button>
+            <div className="text-xs text-slate-500">
+              Showing <span className="font-medium">{filtered.length}</span> of{" "}
+              {rows.length}
+            </div>
           </div>
         </div>
 
@@ -213,14 +236,15 @@ export default function AnnotationsViewer({
             <table className="w-full text-sm">
               <thead className="bg-slate-50 sticky top-0">
                 <tr className="text-left text-slate-600 border-b border-slate-200">
-                  <th className="py-2 px-3 w-8"></th>
                   <th className="py-2 px-3">post_id</th>
                   <th className="py-2 px-3">Annotator</th>
                   <th className="py-2 px-3">Status</th>
                   <th className="py-2 px-3">Image status</th>
+                  <th className="py-2 px-3">Question</th>
                   <th className="py-2 px-3">Objective description</th>
                   <th className="py-2 px-3">Final summary</th>
                   <th className="py-2 px-3">Updated</th>
+                  <th className="py-2 px-3 text-right">Details</th>
                 </tr>
               </thead>
               <tbody>
@@ -230,15 +254,6 @@ export default function AnnotationsViewer({
                   return (
                     <React.Fragment key={rowKey}>
                       <tr className="border-b border-slate-100 hover:bg-slate-50">
-                        <td className="py-2 px-3 align-top">
-                          <button
-                            onClick={() => toggleRow(rowKey)}
-                            className="text-slate-400 hover:text-slate-700"
-                            title={isOpen ? "Collapse" : "Expand"}
-                          >
-                            {isOpen ? "▾" : "▸"}
-                          </button>
-                        </td>
                         <td className="py-2 px-3 align-top font-mono text-xs">
                           {r.post_id}
                         </td>
@@ -249,6 +264,9 @@ export default function AnnotationsViewer({
                         <td className="py-2 px-3 align-top text-xs">
                           {r.image_status || "—"}
                         </td>
+                        <td className="py-2 px-3 align-top text-xs max-w-[280px]">
+                          <Truncated text={r.original_question} />
+                        </td>
                         <td className="py-2 px-3 align-top text-xs max-w-[260px]">
                           <Truncated text={r.objective_image_description} />
                         </td>
@@ -258,11 +276,19 @@ export default function AnnotationsViewer({
                         <td className="py-2 px-3 align-top text-xs text-slate-500 whitespace-nowrap">
                           {formatDate(r.updated_at)}
                         </td>
+                        <td className="py-2 px-3 align-top text-right">
+                          <button
+                            onClick={() => toggleRow(rowKey)}
+                            className="text-xs px-2 py-1 rounded border border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-100"
+                            title={isOpen ? "Hide full text" : "Show full text"}
+                          >
+                            {isOpen ? "Hide" : "Show full"}
+                          </button>
+                        </td>
                       </tr>
                       {isOpen && (
-                        <tr className="bg-slate-50 border-b border-slate-200">
-                          <td></td>
-                          <td colSpan={7} className="py-3 px-3">
+                        <tr className="bg-indigo-50/40 border-b border-slate-200">
+                          <td colSpan={9} className="py-4 px-4">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
                               <Field
                                 label="Original question"
