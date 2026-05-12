@@ -10,6 +10,7 @@ import {
 import { importDatasetFile } from "../lib/importDataset";
 import { downloadFile, toCSV } from "../lib/csv";
 import { toJSONL } from "../lib/jsonl";
+import AnnotationsViewer from "./AnnotationsViewer";
 
 interface Props {
   onBack: () => void;
@@ -25,6 +26,7 @@ export default function AdminPanel({ onBack }: Props) {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  const [viewing, setViewing] = useState<Dataset | null>(null);
 
   const load = useCallback(async () => {
     setError("");
@@ -207,7 +209,7 @@ export default function AdminPanel({ onBack }: Props) {
                   <th className="py-2 pr-3">Draft</th>
                   <th className="py-2 pr-3">Skipped</th>
                   <th className="py-2 pr-3">Remaining</th>
-                  <th className="py-2 pr-3">Export</th>
+                  <th className="py-2 pr-3">View / Download</th>
                   <th className="py-2 pr-3"></th>
                 </tr>
               </thead>
@@ -232,7 +234,14 @@ export default function AdminPanel({ onBack }: Props) {
                       </td>
                       <td className="py-2 pr-3">{p?.remaining ?? "—"}</td>
                       <td className="py-2 pr-3">
-                        <div className="flex gap-2">
+                        <div className="flex gap-3 items-center">
+                          <button
+                            onClick={() => setViewing(d)}
+                            className="text-indigo-700 font-medium hover:underline"
+                          >
+                            View
+                          </button>
+                          <span className="text-slate-300">·</span>
                           <button
                             onClick={() => exportAs(d.id, d.name, "csv")}
                             className="text-indigo-600 hover:underline"
@@ -280,6 +289,15 @@ export default function AdminPanel({ onBack }: Props) {
           </div>
         )}
       </div>
+
+      {viewing && (
+        <AnnotationsViewer
+          datasetId={viewing.id}
+          datasetName={viewing.name}
+          totalSamples={viewing.total_samples}
+          onClose={() => setViewing(null)}
+        />
+      )}
     </div>
   );
 }
