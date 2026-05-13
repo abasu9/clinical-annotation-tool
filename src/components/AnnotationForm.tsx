@@ -1,6 +1,8 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { IMAGE_STATUS_OPTIONS } from "../lib/supabase";
 
+const STATUS_SET = new Set<string>(IMAGE_STATUS_OPTIONS);
+
 export interface FormData {
   imageStatus: string;
   objectiveImageDescription: string;
@@ -65,6 +67,11 @@ export default function AnnotationForm({ value, onChange, errors }: Props) {
             className="w-full border border-slate-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"
           >
             <option value="">— Select —</option>
+            {local.imageStatus && !STATUS_SET.has(local.imageStatus) && (
+              <option value={local.imageStatus}>
+                {local.imageStatus} (legacy — pick a new status)
+              </option>
+            )}
             {IMAGE_STATUS_OPTIONS.map((opt) => (
               <option key={opt} value={opt}>
                 {opt}
