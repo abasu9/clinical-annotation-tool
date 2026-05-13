@@ -133,8 +133,7 @@ export default function AnnotationPage({
     const errs: string[] = [];
     if (!data.imageStatus) errs.push("Image Status is required.");
     if (
-      (data.imageStatus === "Image available" ||
-        data.imageStatus === "No medical finding visible") &&
+      data.imageStatus === "No medical finding visible" &&
       !data.objectiveImageDescription.trim()
     ) {
       errs.push("Objective Image Description is required for this image status.");
@@ -172,9 +171,7 @@ export default function AnnotationPage({
     async (status: "draft" | "submitted" | "skipped", data: FormData) => {
       if (!current) return null;
       const objective =
-        (status !== "submitted") &&
-        (data.imageStatus === "Image not assessable" ||
-          data.imageStatus === "Image link broken") &&
+        data.imageStatus === "Image not assessable" &&
         !data.objectiveImageDescription.trim()
           ? "Image not assessable."
           : data.objectiveImageDescription || null;

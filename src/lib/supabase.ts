@@ -53,9 +53,7 @@ export interface Annotation {
 }
 
 export const IMAGE_STATUS_OPTIONS = [
-  "Image available",
   "Image not assessable",
-  "Image link broken",
   "No medical finding visible",
 ] as const;
 

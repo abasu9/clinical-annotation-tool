@@ -31,18 +31,13 @@ export default function AnnotationForm({ value, onChange, errors }: Props) {
 
   const onStatusChange = (val: string) => {
     const patch: Partial<FormData> = { imageStatus: val };
-    if (
-      (val === "Image not assessable" || val === "Image link broken") &&
-      !local.objectiveImageDescription.trim()
-    ) {
+    if (val === "Image not assessable" && !local.objectiveImageDescription.trim()) {
       patch.objectiveImageDescription = "Image not assessable.";
     }
     update(patch);
   };
 
-  const objectiveRequired =
-    local.imageStatus === "Image available" ||
-    local.imageStatus === "No medical finding visible";
+  const objectiveRequired = local.imageStatus === "No medical finding visible";
 
   return (
     <div className="bg-white rounded-lg shadow border border-slate-200 flex flex-col h-full">
