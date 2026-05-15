@@ -1,10 +1,15 @@
 import React, { useEffect, useState, useCallback } from "react";
-import { REQUIRES_SUMMARIZATION_OPTIONS } from "../lib/supabase";
+import {
+  REQUIRES_SUMMARIZATION_OPTIONS,
+  SUMMARIZATION_REASON_OPTIONS,
+} from "../lib/supabase";
 
 const SUMMARIZATION_SET = new Set<string>(REQUIRES_SUMMARIZATION_OPTIONS);
+const REASON_SET = new Set<string>(SUMMARIZATION_REASON_OPTIONS);
 
 export interface FormData {
   imageStatus: string;
+  summarizationReason: string;
   objectiveImageDescription: string;
   finalMultimodalClinicalSummary: string;
 }
@@ -20,7 +25,12 @@ export default function AnnotationForm({ value, onChange, errors }: Props) {
 
   useEffect(() => {
     setLocal(value);
-  }, [value.imageStatus, value.objectiveImageDescription, value.finalMultimodalClinicalSummary]);
+  }, [
+    value.imageStatus,
+    value.summarizationReason,
+    value.objectiveImageDescription,
+    value.finalMultimodalClinicalSummary,
+  ]);
 
   const update = useCallback(
     (patch: Partial<FormData>) => {
@@ -56,7 +66,12 @@ export default function AnnotationForm({ value, onChange, errors }: Props) {
           </label>
           <select
             value={local.imageStatus}
-            onChange={(e) => update({ imageStatus: e.target.value })}
+            onChange={(e) => {
+              const val = e.target.value;
+              const patch: Partial<FormData> = { imageStatus: val };
+              if (val === "Yes") patch.summarizationReason = "";
+              update(patch);
+            }}
             className="w-full border border-slate-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"
           >
             <option value="">— Select —</option>
@@ -77,6 +92,35 @@ export default function AnnotationForm({ value, onChange, errors }: Props) {
             summarization.
           </p>
         </div>
+
+        {local.imageStatus === "No" && (
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">
+              Reason <span className="text-red-500">*</span>
+            </label>
+            <select
+              value={local.summarizationReason}
+              onChange={(e) => update({ summarizationReason: e.target.value })}
+              className="w-full border border-slate-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"
+            >
+              <option value="">— Select —</option>
+              {local.summarizationReason &&
+                !REASON_SET.has(local.summarizationReason) && (
+                  <option value={local.summarizationReason}>
+                    {local.summarizationReason} (legacy)
+                  </option>
+                )}
+              {SUMMARIZATION_REASON_OPTIONS.map((opt) => (
+                <option key={opt} value={opt}>
+                  {opt}
+                </option>
+              ))}
+            </select>
+            <p className="text-xs text-slate-500 mt-1.5">
+              Why is summarization not required for this post?
+            </p>
+          </div>
+        )}
 
         <div>
           <label className="text-sm font-medium text-slate-700 mb-1 block">

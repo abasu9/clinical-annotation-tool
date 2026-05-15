@@ -45,6 +45,7 @@ export interface Annotation {
   post_id: string;
   annotator_id: string;
   image_status: string;
+  summarization_reason: string | null;
   objective_image_description: string | null;
   final_multimodal_clinical_summary: string | null;
   status: AnnotationStatus;
@@ -60,3 +61,9 @@ export const IMAGE_STATUS_OPTIONS = REQUIRES_SUMMARIZATION_OPTIONS;
 
 export type RequiresSummarization =
   (typeof REQUIRES_SUMMARIZATION_OPTIONS)[number] | "";
+
+/** Why summarization is not required (when image_status = No) */
+export const SUMMARIZATION_REASON_OPTIONS = [
+  "One image is not clear",
+  "Question is complete — don't need image for complete summary",
+] as const;

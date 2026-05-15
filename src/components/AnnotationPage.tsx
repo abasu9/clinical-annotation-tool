@@ -26,6 +26,7 @@ interface Props {
 
 const EMPTY_FORM: FormData = {
   imageStatus: "",
+  summarizationReason: "",
   objectiveImageDescription: "",
   finalMultimodalClinicalSummary: "",
 };
@@ -34,6 +35,7 @@ function annotationToForm(a: Annotation | undefined): FormData {
   if (!a) return EMPTY_FORM;
   return {
     imageStatus: a.image_status ?? "",
+    summarizationReason: a.summarization_reason ?? "",
     objectiveImageDescription: a.objective_image_description ?? "",
     finalMultimodalClinicalSummary: a.final_multimodal_clinical_summary ?? "",
   };
@@ -134,6 +136,11 @@ export default function AnnotationPage({
     if (!data.imageStatus) {
       errs.push("Does this question require summarization? (Yes or No) is required.");
     }
+    if (data.imageStatus === "No") {
+      if (!data.summarizationReason.trim()) {
+        errs.push("Reason is required when summarization is No.");
+      }
+    }
     if (data.imageStatus === "Yes") {
       if (!data.objectiveImageDescription.trim()) {
         errs.push("Objective Image Description is required when summarization is Yes.");
@@ -179,6 +186,8 @@ export default function AnnotationPage({
         post_id: current.post_id,
         annotator_id: annotatorId,
         image_status: data.imageStatus,
+        summarization_reason:
+          data.imageStatus === "No" ? data.summarizationReason.trim() || null : null,
         objective_image_description: objective,
         final_multimodal_clinical_summary: summary,
         status,
@@ -190,10 +199,17 @@ export default function AnnotationPage({
     [current, dataset.id, annotatorId]
   );
 
+  const needsReason =
+    form.imageStatus === "No" && !form.summarizationReason.trim();
+
   const handleSaveDraft = async () => {
     if (!current || busy) return;
     if (!form.imageStatus) {
       setErrors(["Yes or No is required (even for a draft)."]);
+      return;
+    }
+    if (needsReason) {
+      setErrors(["Reason is required when summarization is No."]);
       return;
     }
     setBusy(true);
@@ -212,6 +228,10 @@ export default function AnnotationPage({
     if (!current || busy) return;
     if (!form.imageStatus) {
       setErrors(["Yes or No is required before skipping."]);
+      return;
+    }
+    if (needsReason) {
+      setErrors(["Reason is required when summarization is No."]);
       return;
     }
     setBusy(true);

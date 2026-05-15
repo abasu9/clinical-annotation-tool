@@ -240,6 +240,7 @@ export default function AnnotationsViewer({
                   <th className="py-2 px-3">Annotator</th>
                   <th className="py-2 px-3">Status</th>
                   <th className="py-2 px-3">Requires summarization</th>
+                  <th className="py-2 px-3">Reason</th>
                   <th className="py-2 px-3">Question</th>
                   <th className="py-2 px-3">Objective description</th>
                   <th className="py-2 px-3">Final summary</th>
@@ -263,6 +264,9 @@ export default function AnnotationsViewer({
                         </td>
                         <td className="py-2 px-3 align-top text-xs">
                           {r.image_status || "—"}
+                        </td>
+                        <td className="py-2 px-3 align-top text-xs max-w-[200px]">
+                          <Truncated text={r.summarization_reason} />
                         </td>
                         <td className="py-2 px-3 align-top text-xs max-w-[280px]">
                           <Truncated text={r.original_question} />
@@ -288,8 +292,16 @@ export default function AnnotationsViewer({
                       </tr>
                       {isOpen && (
                         <tr className="bg-indigo-50/40 border-b border-slate-200">
-                          <td colSpan={9} className="py-4 px-4">
+                          <td colSpan={10} className="py-4 px-4">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+                              <Field
+                                label="Requires summarization"
+                                value={r.image_status}
+                              />
+                              <Field
+                                label="Reason"
+                                value={r.summarization_reason ?? ""}
+                              />
                               <Field
                                 label="Original question"
                                 value={r.original_question}

@@ -30,6 +30,7 @@ create table if not exists public.annotations (
   post_id text not null,
   annotator_id text not null,
   image_status text not null,
+  summarization_reason text,
   objective_image_description text,
   final_multimodal_clinical_summary text,
   status text not null check (status in ('draft', 'submitted', 'skipped')),

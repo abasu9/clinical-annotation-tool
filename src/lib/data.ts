@@ -84,6 +84,7 @@ export interface UpsertAnnotationInput {
   post_id: string;
   annotator_id: string;
   image_status: string;
+  summarization_reason: string | null;
   objective_image_description: string | null;
   final_multimodal_clinical_summary: string | null;
   status: "draft" | "submitted" | "skipped";
@@ -117,6 +118,7 @@ export interface ExportRow {
   original_question: string;
   image_urls: string[];
   image_status: string;
+  summarization_reason: string | null;
   objective_image_description: string | null;
   final_multimodal_clinical_summary: string | null;
   annotator_id: string;
@@ -129,7 +131,7 @@ export async function fetchExportRows(datasetId: string): Promise<ExportRow[]> {
   const { data, error } = await supabase
     .from("annotations")
     .select(
-      "dataset_id, post_id, annotator_id, image_status, objective_image_description, final_multimodal_clinical_summary, status, created_at, updated_at, sample:samples(question, image_urls)"
+      "dataset_id, post_id, annotator_id, image_status, summarization_reason, objective_image_description, final_multimodal_clinical_summary, status, created_at, updated_at, sample:samples(question, image_urls)"
     )
     .eq("dataset_id", datasetId)
     .order("created_at", { ascending: true });
@@ -139,6 +141,7 @@ export async function fetchExportRows(datasetId: string): Promise<ExportRow[]> {
     post_id: string;
     annotator_id: string;
     image_status: string;
+    summarization_reason: string | null;
     objective_image_description: string | null;
     final_multimodal_clinical_summary: string | null;
     status: string;
@@ -152,6 +155,7 @@ export async function fetchExportRows(datasetId: string): Promise<ExportRow[]> {
     original_question: r.sample?.question ?? "",
     image_urls: r.sample?.image_urls ?? [],
     image_status: r.image_status,
+    summarization_reason: r.summarization_reason,
     objective_image_description: r.objective_image_description,
     final_multimodal_clinical_summary: r.final_multimodal_clinical_summary,
     annotator_id: r.annotator_id,
