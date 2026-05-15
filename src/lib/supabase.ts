@@ -63,7 +63,4 @@ export type RequiresSummarization =
   (typeof REQUIRES_SUMMARIZATION_OPTIONS)[number] | "";
 
 /** Why summarization is not required (when image_status = No) */
-export const SUMMARIZATION_REASON_OPTIONS = [
-  "One image is not clear",
-  "Question is complete — don't need image for complete summary",
-] as const;
+export const SUMMARIZATION_REASON_OPTIONS = ["Image is not clear"] as const;

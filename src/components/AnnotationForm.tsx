@@ -70,6 +70,8 @@ export default function AnnotationForm({ value, onChange, errors }: Props) {
               const val = e.target.value;
               const patch: Partial<FormData> = { imageStatus: val };
               if (val === "Yes") patch.summarizationReason = "";
+              else if (val === "No")
+                patch.summarizationReason = SUMMARIZATION_REASON_OPTIONS[0];
               update(patch);
             }}
             className="w-full border border-slate-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"
@@ -88,8 +90,7 @@ export default function AnnotationForm({ value, onChange, errors }: Props) {
           </select>
           <p className="text-xs text-slate-500 mt-1.5">
             Choose <strong>Yes</strong> to complete both tasks below. Choose{" "}
-            <strong>No</strong> if summarization is not needed — then pick a{" "}
-            <strong>Reason</strong>.
+            <strong>No</strong> if the image is not clear enough to summarize.
           </p>
         </div>
 
@@ -133,8 +134,8 @@ export default function AnnotationForm({ value, onChange, errors }: Props) {
               </select>
               <p className="text-xs text-slate-500 mt-1.5">
                 {local.imageStatus === "No"
-                  ? "Why is summarization not required?"
-                  : "Choose No for summarization to enable this dropdown."}
+                  ? "Use when the image cannot be assessed for annotation."
+                  : "Choose No for summarization to set the reason."}
               </p>
             </>
           )}
