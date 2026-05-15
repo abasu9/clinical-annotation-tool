@@ -213,7 +213,7 @@ export default function AnnotationForm({ value, onChange, errors }: Props) {
             placeholder={
               local.imageStatus === "No"
                 ? "Not required when summarization is No"
-                : "Factual clinical description for a colleague who cannot see the image…"
+                : "Describe what you see in the image…"
             }
           />
         </div>
@@ -353,7 +353,7 @@ export default function AnnotationForm({ value, onChange, errors }: Props) {
             placeholder={
               local.imageStatus === "No"
                 ? "Not required when summarization is No"
-                : "One combined clinical question (2–3 short sentences only if needed)…"
+                : "Write the clinical summary…"
             }
           />
         </div>
