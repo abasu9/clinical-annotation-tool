@@ -4,30 +4,46 @@ A lean, **serverless** web app for expert annotation of multimodal clinical
 posts (text + images). Designed for small expert teams who need a clean
 interface, structured outputs, and zero backend ops.
 
-Each sample produces two outputs:
+Each sample can produce two annotation outputs (when summarization is required):
 
 1. **Objective Image Description** — what is literally visible in the image
 2. **Final Multimodal Clinical Summary** — clinician-grade synthesis of post + image
 
-> **Live demo:** [https://clinical-annotation-tool.abhishek-basu2010.workers.dev](https://clinical-annotation-tool.abhishek-basu2010.workers.dev)
+> **Live app:** [https://clinical-annotation-tool.abhishek-basu2010.workers.dev](https://clinical-annotation-tool.abhishek-basu2010.workers.dev)  
 > **Source:** [github.com/abasu9/clinical-annotation-tool](https://github.com/abasu9/clinical-annotation-tool)
 
 ---
 
 ## Highlights
 
-- **Single-page React app** — no backend code, no servers to babysit.
-- **Per-annotator workflow** — login by ID, resume across refreshes (`localStorage`).
-- **In-portal annotation viewer** — filter by status / annotator / free-text
-  search; expand any row to see the full question and annotation text.
-- **Two-click CSV / JSONL export** of the entire dataset, or just the
-  currently filtered subset.
-- **Real-time progress** counters (submitted · draft · skipped · remaining)
-  per dataset.
-- **Multi-image viewer** with zoom, navigation, and a graceful broken-image
-  placeholder.
-- **Optional dataset preparation script** that fans out multi-image posts
-  and rewrites local paths to public R2 URLs.
+- **Single-page React app** — no backend server; Supabase + R2 from the browser.
+- **Two roles:**
+  - **Annotators** — enter an **annotator ID** (stored in `localStorage`).
+  - **Admins** — **username + password** to import datasets, view progress, export, and delete.
+- **Annotation layout** — image (left) and original post (right); annotation form below.
+- **Summarization gate** — *Does this question require summarization?* (Yes / No); if **No**, a **Reason** is required; if **Yes**, both task fields are required on submit.
+- **In-portal annotation viewer** — filter by status / annotator / search; expand rows; export filtered or full CSV/JSONL.
+- **Annotation guidelines** — PDF link in the header and on the login screen (`public/annotation_guidelines.pdf`).
+- **Dataset prep script** — expand multi-image local folders and rewrite paths to public R2 URLs.
+- **Cloudflare Workers** hosting with Git-connected deploy (`wrangler.jsonc`).
+
+---
+
+## User roles
+
+| Role | How to access | What they can do |
+|------|----------------|------------------|
+| **Annotator** | Enter annotator ID on the home screen | Pick a dataset, annotate samples, save draft / submit / skip |
+| **Admin** | Click **Admin** → sign in | Import CSV/JSONL, view annotations, download exports, delete datasets |
+
+**Default admin credentials** (override with env vars before production):
+
+- Username: `admin`
+- Password: `admin123`
+
+Admin unlock lasts about **8 hours** per browser tab (`sessionStorage`). Use **Logout** in the admin panel to lock again immediately.
+
+Annotators do **not** need a password — only a unique annotator ID (shown on exports).
 
 ---
 
@@ -39,178 +55,130 @@ Each sample produces two outputs:
  │                                             │
  │   ┌───────────────┐    ┌──────────────────┐ │
  │   │ Annotator UI  │    │ Admin Panel      │ │
- │   │ Login         │    │ Import dataset   │ │
- │   │ Annotate      │    │ View / Download  │ │
+ │   │ (annotator ID)│    │ (username/pw)    │ │
+ │   │ Annotate      │    │ Import / Export  │ │
  │   └───────┬───────┘    └────────┬─────────┘ │
  │           │                     │           │
  │           ▼                     ▼           │
  │   ┌─────────────────────────────────────┐   │
- │   │ Supabase JS client (REST + Auth)    │   │
+ │   │ Supabase JS client (REST)           │   │
  │   └────────────────┬────────────────────┘   │
  └────────────────────┼────────────────────────┘
                       │                     ▲
-   ┌──────────────────▼──────────────┐      │ images
-   │ Supabase Postgres               │      │ (HTTPS)
+   ┌──────────────────▼──────────────┐      │ images (HTTPS)
+   │ Supabase Postgres               │      │
    │  • datasets / samples /         │      │
-   │    annotations (RLS off in      │      │
+   │    annotations (RLS off in       │      │
    │    prototype)                   │      │
    └─────────────────────────────────┘      │
                                             │
                               ┌─────────────┴──────────────┐
-                              │ Cloudflare R2 (S3-compat.)  │
-                              │  • images_sample_100/*.jpg  │
+                              │ Cloudflare R2               │
+                              │  • public image URLs        │
                               └─────────────────────────────┘
 ```
 
 | Layer            | Choice                                                   |
 | ---------------- | -------------------------------------------------------- |
 | Frontend         | React 18 + TypeScript + Tailwind CSS (Vite 6)            |
-| Database         | Supabase Postgres (called directly from the browser)     |
-| Image storage    | Cloudflare R2 (public or signed URLs)                    |
-| Hosting          | Cloudflare Workers (static assets), Pages, Vercel, etc.  |
-| Backend          | **None** — purely client-side                            |
-| Export           | Browser exports CSV / JSONL directly from Supabase data  |
+| Database         | Supabase Postgres (browser client)                       |
+| Image storage    | Cloudflare R2 (public URLs in dataset file)              |
+| Hosting          | Cloudflare Workers static assets (recommended)           |
+| Backend          | **None**                                                 |
+| Export           | CSV / JSONL from Supabase via the admin UI               |
 
-> **Privacy notice.** The prototype uses the Supabase **public anon key** in
-> the browser with Row Level Security **disabled**. Treat the deployed URL
-> as confidential. Do **not** upload identifiable patient data unless it is
-> covered by your IRB / project policy. For production, enable RLS in
-> `supabase/schema.sql` and add real authentication.
+> **Privacy.** The prototype uses the Supabase **anon key** in the browser with RLS **disabled**. Do not upload identifiable patient data without IRB / project approval. For production, enable RLS and stronger admin auth.
 
 ---
 
-## Quick start (local dev, ~5 minutes)
+## Quick start (local dev)
 
 ```bash
 git clone https://github.com/abasu9/clinical-annotation-tool.git
 cd clinical-annotation-tool
 npm install
-cp .env.example .env       # then fill in your Supabase URL + anon key
-npm run dev                # http://localhost:3000
+cp .env.example .env    # add Supabase URL + anon key (admin creds optional)
+npm run dev             # http://localhost:3000
 ```
 
-That's enough to log in, open the Admin Panel, and import a dataset. You'll
-need Supabase set up (next section) for anything to actually save.
-
-### Available scripts
-
-| Command           | Purpose                                                  |
-| ----------------- | -------------------------------------------------------- |
-| `npm run dev`     | Vite dev server with HMR on `http://localhost:3000`      |
-| `npm run build`   | Type-check (`tsc -b`) and produce a production `dist/`   |
-| `npm run preview` | Serve the production bundle locally                      |
-| `npm run typecheck` | Type-check without emitting                            |
+| Command            | Purpose                                |
+| ------------------ | -------------------------------------- |
+| `npm run dev`      | Dev server with HMR                    |
+| `npm run build`    | Type-check + production `dist/`        |
+| `npm run preview`  | Build + local Wrangler preview         |
+| `npm run deploy`   | Build + `wrangler deploy` (needs login)|
+| `npm run typecheck`| Type-check only                        |
 
 ---
 
-## 1. Create the Supabase project
+## Setup
 
-1. Sign in at [supabase.com](https://supabase.com) → **New Project**.
-2. Once provisioned, go to **Project Settings → API** and copy:
-   - **Project URL** → `VITE_SUPABASE_URL`
-   - **anon public key** → `VITE_SUPABASE_ANON_KEY`
+### 1. Supabase project
 
-## 2. Run the schema
+1. [supabase.com](https://supabase.com) → **New Project**.
+2. **Project Settings → API** → copy **Project URL** and **anon public key**.
 
-In the Supabase **SQL editor**, paste the contents of
-[`supabase/schema.sql`](supabase/schema.sql) and click **Run**. This creates:
+### 2. Database schema
 
-- `datasets` — one row per imported batch.
-- `samples` — one row per post (`post_id`, `question`, `image_urls jsonb`).
-- `annotations` — one row per `(sample, annotator)` pair, with an
-  `(sample_id, annotator_id)` unique index for clean upserts.
-- An `updated_at` trigger and the necessary indexes.
-- RLS is **disabled** in the prototype. Re-enable it before production.
+In the Supabase **SQL editor**, run [`supabase/schema.sql`](supabase/schema.sql).
 
-## 3. Create a Cloudflare R2 bucket
+Creates `datasets`, `samples`, `annotations` (with `summarization_reason`), indexes, `updated_at` trigger, and **disables RLS** for the prototype.
 
-1. Cloudflare dashboard → **R2 → Create bucket**
-   (e.g. `clinical-annotation-images`).
-2. Choose how images will be served:
-   - **Public dev URL** — turn on the `pub-*.r2.dev` subdomain. Rate-limited
-     but fine for prototypes. Cloudflare blocks non-browser user agents on
-     these domains, so `<img>` tags work but `curl` may not.
-   - **Custom domain** — recommended for sharing widely. Attach a Cloudflare
-     domain in the bucket settings.
-   - **Private + signed URLs** — keep the bucket private and pre-sign URLs
-     out-of-band before importing.
+If your project predates `summarization_reason`, also run
+[`supabase/migrations/add_summarization_reason.sql`](supabase/migrations/add_summarization_reason.sql).
 
-## 4. Upload images to R2
+### 3. Cloudflare R2 (images)
 
-Use whichever tool you like — Cloudflare's dashboard, `rclone`, `wrangler`,
-or the AWS CLI pointed at the S3-compatible endpoint:
+1. **R2 → Create bucket** (e.g. `clinical-annotation-images`).
+2. Enable a **public dev URL** (`pub-*.r2.dev`) or attach a custom domain.
+3. Upload images (dashboard, `rclone`, `wrangler`, or AWS CLI against the R2 endpoint).
 
-```bash
-aws s3 cp ./images_sample_100/ s3://YOUR_BUCKET/images_sample_100/ \
-  --recursive \
-  --endpoint-url https://<account-id>.r2.cloudflarestorage.com
-```
+The app does **not** upload images — only stores HTTPS URLs in the dataset file.
 
-The app does **not** upload images itself — it only references existing URLs.
+### 4. Dataset file format
 
-## 5. Put R2 URLs in the dataset file
+Required columns:
 
-Three columns are required:
+| Column                          | Notes                        |
+| ------------------------------- | ---------------------------- |
+| `post_id`                       | Unique per row               |
+| `question`                      | Full post text               |
+| `image_urls` or `image_paths`   | See formats below            |
 
-| Column                          | Type                          |
-| ------------------------------- | ----------------------------- |
-| `post_id`                       | text, unique per row          |
-| `question`                      | text (full post body)         |
-| `image_urls` *or* `image_paths` | image references (see below)  |
+`image_urls` may be a single URL, semicolon-separated URLs, a JSON array string, or (JSONL) a native array.
 
-`image_urls` may be:
-
-- a single URL: `https://r2.example.com/A.jpg`
-- semicolon-separated: `https://.../A.jpg;https://.../B.jpg`
-- a JSON-array string: `["https://.../A.jpg","https://.../B.jpg"]`
-- in JSONL, a native JSON array
-
-### Minimal examples
-
-CSV:
+**CSV example:**
 
 ```csv
 post_id,question,image_urls
-DEMO_001,"Synthetic placeholder post","https://r2.example.com/DEMO_001_0.jpg;https://r2.example.com/DEMO_001_1.jpg"
+DEMO_001,"Synthetic placeholder post","https://pub-xxxx.r2.dev/images_sample_100/DEMO_001_0.jpg"
 ```
 
-JSONL:
+**JSONL example:**
 
 ```json
-{"post_id":"DEMO_001","question":"Synthetic placeholder post","image_urls":["https://r2.example.com/DEMO_001_0.jpg"]}
+{"post_id":"DEMO_001","question":"Synthetic placeholder post","image_urls":["https://pub-xxxx.r2.dev/images_sample_100/DEMO_001_0.jpg"]}
 ```
 
-> **XLSX is not supported** in the importer to keep the bundle small.
-> Convert XLSX to CSV/JSONL first (Excel → *Save As* → CSV).
+> **XLSX** is not supported — convert to CSV or JSONL first.
 
-### Preparing a local dataset with multiple images per post
+### 5. Prepare local data for R2 (optional)
 
-If your source file uses a single `local_path` per row (e.g. only `_0.jpg`)
-but the matching folder on disk also has `_1.jpg`, `_2.jpg`, …, the helper
-script will fan them out and rewrite to R2 URLs:
+If rows have `local_path` / `local_paths` and your folder has `_0.jpg`, `_1.jpg`, …:
 
 ```bash
 node scripts/prepare-dataset.mjs \
   --input  "/abs/path/data_sample_100.jsonl" \
   --images "/abs/path/images_sample_100" \
-  --base   "https://r2.example.com/images_sample_100" \
+  --base   "https://pub-xxxx.r2.dev/images_sample_100" \
   --output "Dataset/data_sample_100.prepared.jsonl"
 ```
 
-The script:
+Import the **prepared** JSONL in Admin — not the raw file with local paths.
 
-- Accepts any of `image_urls / image_paths / image_path / local_path / local_paths`.
-- Scans the images folder and expands each `post_id` into all `_0..N` files.
-- Rewrites filenames as `<base>/<filename>` so the browser fetches them
-  directly from R2.
-- Outputs a clean JSONL ready for the Admin importer.
+Reference file in repo: `Dataset/data_sample_100.prepared.jsonl` (100 rows, one image per post).
 
-> **Sensitive content check.** The reference 100-sample file contains
-> long-form posts that read like real medical descriptions (age, sex,
-> medications, conditions). Confirm de-identification / IRB coverage before
-> importing into a Supabase project where the anon key is public.
-
-## 6. Configure environment variables
+### 6. Environment variables
 
 ```bash
 cp .env.example .env
@@ -219,107 +187,70 @@ cp .env.example .env
 ```env
 VITE_SUPABASE_URL=https://YOUR-PROJECT.supabase.co
 VITE_SUPABASE_ANON_KEY=YOUR_PUBLIC_ANON_KEY
+
+# Optional — defaults to admin / admin123 if omitted
 VITE_ADMIN_USERNAME=admin
 VITE_ADMIN_PASSWORD=admin123
 ```
 
-**Admin sign-in** — import/export/delete require `VITE_ADMIN_USERNAME` and
-`VITE_ADMIN_PASSWORD` (default example: `admin` / `admin123` — change before
-production). Unlock lasts about 8 hours per browser tab. Annotators still use
-only an annotator ID.
+Restart `npm run dev` after changing `.env`.
 
-> **Prototype note:** credentials are embedded in the built JS bundle. Fine for
-> a small trusted team; use Supabase RLS + real auth before a public launch.
+Vite inlines `VITE_*` at **build time**. On Cloudflare, set them under **Settings → Build → Variables and Secrets** (not runtime-only vars).
 
-Vite inlines `VITE_*` values at **build time** — they must exist *before*
-`npm run build` (or before any CI build). They are baked into the JS bundle
-that ships to the browser. The anon key is designed to be public, but is
-only safe if RLS is enabled and configured.
+> Admin credentials are also compiled into the JS bundle (prototype-only security). Change them before a public launch.
 
----
+### 7. Deploy
 
-## 7. Deploy
+**Cloudflare (recommended)**
 
-> The repo ships with a [`wrangler.jsonc`](wrangler.jsonc) so it deploys
-> cleanly under Cloudflare's unified Workers + Static Assets flow without
-> any extra config.
+1. **Workers & Pages → Connect to Git** → this repo.
+2. Build: `npm run build` → output `dist` → deploy `npx wrangler deploy` (or use dashboard defaults + `wrangler.jsonc`).
+3. Build variables: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, and optionally `VITE_ADMIN_USERNAME` / `VITE_ADMIN_PASSWORD`.
+4. Push to `main` to redeploy.
 
-### Cloudflare (recommended — same account as R2)
+**CLI**
 
-1. **Workers & Pages → Create → Connect to Git**, choose this repo.
-2. Build settings (auto-detected from `package.json` and `wrangler.jsonc`):
-   - **Build command** — `npm run build`
-   - **Build output directory** — `dist`
-   - **Deploy command** — `npx wrangler deploy`
-3. **Settings → Build → Variables and Secrets** — add as **build-time**
-   variables (not runtime — the SPA inlines them at build):
-   - `VITE_SUPABASE_URL`
-   - `VITE_SUPABASE_ANON_KEY`
-   - `VITE_ADMIN_USERNAME`
-   - `VITE_ADMIN_PASSWORD`
-4. **Save & deploy.** You get a stable URL such as
-   `https://<project>.<account>.workers.dev`.
+```bash
+npm run deploy   # requires wrangler login or CLOUDFLARE_API_TOKEN
+```
 
-Push to `main` → new build → new deployment, automatically.
-
-### Vercel
-
-1. Import the repo at [vercel.com/new](https://vercel.com/new).
-2. Framework auto-detects as **Vite** — leave defaults.
-3. **Settings → Environment Variables** — add `VITE_SUPABASE_URL` and
-   `VITE_SUPABASE_ANON_KEY` for **Production + Preview + Development**.
-4. Deploy. *(Note: Vercel's Hobby plan is "non-commercial use only".)*
-
-### Netlify
-
-1. New site from Git → pick this repo.
-2. Build command `npm run build`, publish directory `dist`.
-3. **Site settings → Environment variables** — add both `VITE_*` vars.
-4. Deploy.
-
-### GitHub Pages
-
-1. Set repo **Settings → Pages → Source = GitHub Actions**.
-2. Add `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` as **repository
-   Actions secrets**.
-3. Add a workflow that runs `npm ci && npm run build` with those secrets
-   exposed as `env:` and publishes `dist/` to Pages. The `base: "./"` in
-   `vite.config.ts` makes the build work under any subpath.
-
-### Anywhere else
-
-Any static host that serves the `dist/` folder works (S3 + CloudFront, Fly,
-Render static, etc.). The only requirement is that the two `VITE_*`
-variables are set in the **build environment**, not at runtime.
+Other static hosts (Vercel, Netlify, GitHub Pages) work if `VITE_*` vars are set at build time and `base: "./"` in `vite.config.ts` is kept.
 
 ---
 
-## 8. Admin: import a dataset
+## Annotation workflow (annotators)
 
-1. Open the app → **Admin (password required)** and sign in (username + password from your env).
-2. Enter a **dataset name** and pick a `.csv` or `.jsonl` file matching the
-   schema above.
-3. Click **Import**. The browser parses the file, creates a `datasets` row,
-   and inserts samples in batches into `samples`. Progress is shown live.
-4. The new dataset appears in the table with submitted / draft / skipped /
-   remaining counters that update as annotators work.
+1. Open the app → enter **annotator ID** → **Start Annotating**.
+2. Select a **dataset**.
+3. For each sample:
+   - Read the **post** (right) and view **image(s)** (left).
+   - **Does this question require summarization?** → **Yes** or **No**.
+   - If **No** → choose **Reason** (required for draft and submit).
+   - If **Yes** → complete **Task 1** (objective image description) and **Task 2** (clinical summary); guidelines appear in scrollable boxes above each field.
+4. **Save Draft**, **Skip**, **Submit & Next**, or **Previous / Next**.
 
-## 9. Admin: view & download results — *all from the portal*
+**Submit validation**
 
-In the Datasets table, each row has **View · CSV · JSONL**:
+| Field | Rule |
+| ----- | ---- |
+| Requires summarization? | Required (Yes or No) |
+| Reason | Required when answer is **No** |
+| Task 1 & Task 2 | Required when answer is **Yes** |
 
-- **View** opens the in-portal annotation viewer (a full-screen modal):
-  - Filter by **Status** (all / submitted / draft / skipped).
-  - Filter by **Annotator** (auto-populated from saved rows).
-  - Free-text **search** across `post_id`, question, and annotation text.
-  - Expand any row to see the full original question, image URLs, and the
-    complete annotation fields.
-  - **Download CSV / JSONL** from inside the viewer to export only the
-    rows currently visible (filename gets an `_all` or `_filtered` tag).
-- **CSV / JSONL** next to each dataset row downloads the full annotation
-  set for that dataset in one click.
+**Draft validation** — summarization choice required; if **No**, reason required.
 
-Each exported row contains:
+---
+
+## Admin workflow
+
+1. **Admin** → sign in (`admin` / `admin123` by default).
+2. **Import** — dataset name + `.csv` or `.jsonl`.
+3. **View** — in-portal browser with filters and filtered export.
+4. **CSV / JSONL** — full-dataset download per row.
+5. **Delete** — remove a dataset and all its samples/annotations.
+6. **Logout** — locks admin for this tab.
+
+Exported rows include:
 
 ```json
 {
@@ -327,7 +258,8 @@ Each exported row contains:
   "post_id": "DEMO_001",
   "original_question": "…",
   "image_urls": ["…"],
-  "image_status": "Image available",
+  "image_status": "Yes",
+  "summarization_reason": null,
   "objective_image_description": "…",
   "final_multimodal_clinical_summary": "…",
   "annotator_id": "expert_001",
@@ -337,35 +269,7 @@ Each exported row contains:
 }
 ```
 
-The CSV variant has the same columns; `image_urls` is joined with `;`.
-
-If two annotators annotated the same `post_id`, you get **two rows** for
-that sample (one per annotator) — useful for inter-annotator agreement.
-
-## 10. Annotators: use the link
-
-Send annotators the deployed URL. They:
-
-1. Enter an **annotator ID** (saved in `localStorage` so a refresh keeps
-   the session).
-2. Pick a **dataset**.
-3. Work through the **next pending sample** for that ID — drafts stay
-   pending; submitted / skipped move on.
-4. Use **Save Draft** to come back later, **Skip** to mark unscorable,
-   **Submit & Next** to advance, or **Previous / Next** to jog around.
-
-### Validation enforced on submit
-
-- `image_status` is **required**.
-- `final_multimodal_clinical_summary` is **required**.
-- `objective_image_description` is **required** when `image_status` is
-  *Image available* or *No medical finding visible*.
-- When `image_status` is *Image not assessable* or *Image link broken*,
-  the form auto-fills `objective_image_description` with
-  **"Image not assessable."** if left empty.
-
-Saving a draft only requires that **Image Status** be selected; other
-fields can be incomplete.
+(`image_status` stores Yes/No for “requires summarization”; legacy values may still appear in old rows.)
 
 ---
 
@@ -376,104 +280,80 @@ clinical-annotation-tool/
 ├─ src/
 │  ├─ App.tsx
 │  ├─ main.tsx
-│  ├─ index.css
 │  ├─ lib/
-│  │   ├─ supabase.ts          # Supabase client + row types
-│  │   ├─ csv.ts               # CSV parse/unparse + file download
-│  │   ├─ jsonl.ts             # JSONL parse/serialize
-│  │   ├─ importDataset.ts     # Parse file → insert dataset + samples
-│  │   └─ data.ts              # Queries + upsert + export helpers
+│  │   ├─ supabase.ts
+│  │   ├─ adminGate.ts           # Admin username/password + session
+│  │   ├─ data.ts
+│  │   ├─ importDataset.ts
+│  │   ├─ guidelines.ts
+│  │   ├─ csv.ts / jsonl.ts
 │  └─ components/
-│      ├─ Header.tsx
 │      ├─ AnnotatorLogin.tsx
+│      ├─ AdminPasswordGate.tsx
 │      ├─ AdminPanel.tsx
-│      ├─ AnnotationsViewer.tsx  # In-portal annotation browser + filtered download
-│      ├─ DatasetSelector.tsx
+│      ├─ AnnotationsViewer.tsx
 │      ├─ AnnotationPage.tsx
-│      ├─ PostPanel.tsx
-│      ├─ ImageViewer.tsx
 │      ├─ AnnotationForm.tsx
+│      ├─ DatasetSelector.tsx
+│      ├─ Header.tsx
+│      ├─ ImageViewer.tsx
+│      ├─ PostPanel.tsx
 │      └─ ProgressBar.tsx
+├─ public/
+│  └─ annotation_guidelines.pdf
 ├─ supabase/
-│  └─ schema.sql                # Tables, indexes, trigger, RLS toggle
-├─ scripts/
-│  ├─ prepare-dataset.mjs       # Fan out + R2-URL-ify a local dataset
-│  └─ push-to-github.sh         # First-time push helper (safety checks)
-├─ sample_data/                 # Template / reference files (gitignored if real)
-├─ Dataset/                     # User-prepared JSONLs (gitignored)
-├─ wrangler.jsonc               # Cloudflare static-assets deploy config
-├─ vite.config.ts               # base: "./" so the build works anywhere
-├─ tailwind.config.js
-├─ postcss.config.js
-├─ tsconfig.json
-├─ .env.example
-└─ README.md
+│  ├─ schema.sql
+│  └─ migrations/add_summarization_reason.sql
+├─ scripts/prepare-dataset.mjs
+├─ Dataset/                      # prepared JSONL (example)
+├─ wrangler.jsonc
+├─ vite.config.ts
+└─ .env.example
 ```
 
 ---
 
-## Data model (Supabase)
+## Data model
 
 ```
 datasets
-  id (uuid, pk)
-  name (text)
-  uploaded_filename (text, null)
-  total_samples (int)
-  created_at (timestamptz)
+  id, name, uploaded_filename, total_samples, created_at
 
 samples
-  id (uuid, pk)
-  dataset_id (uuid, fk → datasets.id, on delete cascade)
-  post_id (text)
-  question (text)
-  image_urls (jsonb)            -- array of strings
-  created_at (timestamptz)
+  id, dataset_id → datasets, post_id, question, image_urls (jsonb), created_at
 
 annotations
-  id (uuid, pk)
-  sample_id (uuid, fk → samples.id, on delete cascade)
-  dataset_id (uuid)
-  post_id (text)
-  annotator_id (text)
-  image_status (text)
-  objective_image_description (text, null)
-  final_multimodal_clinical_summary (text, null)
-  status (text: 'draft' | 'submitted' | 'skipped')
-  created_at, updated_at (timestamptz)
+  id, sample_id → samples, dataset_id, post_id, annotator_id
+  image_status              -- "Yes" | "No" (requires summarization)
+  summarization_reason      -- set when image_status = "No"
+  objective_image_description
+  final_multimodal_clinical_summary
+  status                    -- draft | submitted | skipped
+  created_at, updated_at
   UNIQUE (sample_id, annotator_id)
 ```
 
-Every save in the UI is an `UPSERT` keyed on
-`(sample_id, annotator_id)` — re-saving the same sample updates the row in
-place rather than creating duplicates.
+Saves use **upsert** on `(sample_id, annotator_id)`.
 
 ---
 
 ## Troubleshooting
 
-| Symptom | Try |
+| Symptom | Fix |
 | --- | --- |
-| Yellow **"Supabase not configured"** banner | `VITE_*` env vars weren't set at build time. On Cloudflare: **Settings → Build → Variables and Secrets** (not the runtime section). Push a no-op commit to trigger a fresh build. |
-| `"Missing VITE_SUPABASE_URL…"` in console | Locally: create `.env` and restart `npm run dev`. |
-| Import fails with **"No valid rows"** | Confirm `post_id`, `question`, and `image_urls`/`image_paths` columns exist and `post_id` is non-empty. |
-| All images show the broken placeholder | Open one URL directly in a browser tab. If it 403s, your R2 bucket isn't public or the signed URL has expired. `curl`-ing `pub-*.r2.dev` URLs may also 403 because Cloudflare blocks non-browser user agents there — open in a real browser. |
-| `permission denied for table datasets` | The schema disables RLS; if you re-enabled it, add policies (see the commented section in `supabase/schema.sql`) or temporarily disable RLS again. |
-| Build OK locally, blank page on host | Ensure `base: "./"` is in `vite.config.ts` and that env vars were passed at **build time** (CI/host build step), not runtime. |
-| Cloudflare build succeeds but env vars not in bundle | Vars are in **runtime** vars, not **build-time**. Move them to *Settings → Build → Variables and Secrets* and push a fresh commit. |
-| Wrangler deploy fails: "no wrangler config" | The repo ships `wrangler.jsonc`; make sure it isn't accidentally `.gitignored` and that Cloudflare picked up the latest commit. |
+| Supabase not configured banner | Set `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` at **build** time; redeploy. |
+| Images broken after import | Import **prepared** JSONL with `https://` R2 URLs, not local paths. |
+| Admin login fails | Default `admin` / `admin123`; or set `VITE_ADMIN_*` in `.env` and restart dev / redeploy. |
+| Import: no valid rows | Check `post_id`, `question`, and `image_urls` / `image_paths`. |
+| `permission denied for table` | RLS was re-enabled — add policies or disable RLS (see `schema.sql`). |
+| Blank page on host | Env vars must be build-time; keep `base: "./"` in Vite config. |
 
 ---
 
 ## License
 
-[MIT](LICENSE) — do with it what you want, just don't sue.
+[MIT](LICENSE)
 
 ## Acknowledgments
 
-- [Supabase](https://supabase.com) for the managed Postgres + JS client.
-- [Cloudflare R2 + Workers](https://cloudflare.com) for image storage and
-  static hosting on a generous free tier.
-- [Vite](https://vitejs.dev), [React](https://react.dev), and
-  [Tailwind CSS](https://tailwindcss.com) for making the frontend fast and
-  pleasant to build.
+Supabase, Cloudflare R2 + Workers, Vite, React, Tailwind CSS.

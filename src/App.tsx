@@ -61,7 +61,7 @@ export default function App() {
         />
       );
     }
-    return <AdminPanel onBack={exitAdmin} backLabel="Lock admin" />;
+    return <AdminPanel onBack={exitAdmin} backLabel="Logout" />;
   }
 
   if (view === "selectDataset") {
