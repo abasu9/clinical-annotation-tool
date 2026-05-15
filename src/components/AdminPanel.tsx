@@ -15,9 +15,10 @@ import { ANNOTATION_GUIDELINES_URL } from "../lib/guidelines";
 
 interface Props {
   onBack: () => void;
+  backLabel?: string;
 }
 
-export default function AdminPanel({ onBack }: Props) {
+export default function AdminPanel({ onBack, backLabel = "Back" }: Props) {
   const [datasets, setDatasets] = useState<Dataset[]>([]);
   const [progress, setProgress] = useState<Record<string, DatasetProgress>>({});
   const [name, setName] = useState("");
@@ -138,7 +139,7 @@ export default function AdminPanel({ onBack }: Props) {
             onClick={onBack}
             className="text-sm text-indigo-600 hover:text-indigo-800 font-medium"
           >
-            ← Back
+            ← {backLabel}
           </button>
         </div>
       </div>

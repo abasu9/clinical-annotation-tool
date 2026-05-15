@@ -219,7 +219,17 @@ cp .env.example .env
 ```env
 VITE_SUPABASE_URL=https://YOUR-PROJECT.supabase.co
 VITE_SUPABASE_ANON_KEY=YOUR_PUBLIC_ANON_KEY
+VITE_ADMIN_USERNAME=admin
+VITE_ADMIN_PASSWORD=admin123
 ```
+
+**Admin sign-in** — import/export/delete require `VITE_ADMIN_USERNAME` and
+`VITE_ADMIN_PASSWORD` (default example: `admin` / `admin123` — change before
+production). Unlock lasts about 8 hours per browser tab. Annotators still use
+only an annotator ID.
+
+> **Prototype note:** credentials are embedded in the built JS bundle. Fine for
+> a small trusted team; use Supabase RLS + real auth before a public launch.
 
 Vite inlines `VITE_*` values at **build time** — they must exist *before*
 `npm run build` (or before any CI build). They are baked into the JS bundle
@@ -245,6 +255,8 @@ only safe if RLS is enabled and configured.
    variables (not runtime — the SPA inlines them at build):
    - `VITE_SUPABASE_URL`
    - `VITE_SUPABASE_ANON_KEY`
+   - `VITE_ADMIN_USERNAME`
+   - `VITE_ADMIN_PASSWORD`
 4. **Save & deploy.** You get a stable URL such as
    `https://<project>.<account>.workers.dev`.
 
@@ -284,7 +296,7 @@ variables are set in the **build environment**, not at runtime.
 
 ## 8. Admin: import a dataset
 
-1. Open the app → **Go to Admin Panel**.
+1. Open the app → **Admin (password required)** and sign in (username + password from your env).
 2. Enter a **dataset name** and pick a `.csv` or `.jsonl` file matching the
    schema above.
 3. Click **Import**. The browser parses the file, creates a `datasets` row,

@@ -8,6 +8,8 @@ import AnnotatorLogin, {
 import AdminPanel from "./components/AdminPanel";
 import DatasetSelector from "./components/DatasetSelector";
 import AnnotationPage from "./components/AnnotationPage";
+import AdminPasswordGate from "./components/AdminPasswordGate";
+import { isAdminUnlocked, lockAdmin } from "./lib/adminGate";
 
 type View = "login" | "admin" | "selectDataset" | "annotate";
 
@@ -15,8 +17,8 @@ export default function App() {
   const [view, setView] = useState<View>("login");
   const [annotatorId, setAnnotatorId] = useState("");
   const [dataset, setDataset] = useState<Dataset | null>(null);
+  const [adminUnlocked, setAdminUnlocked] = useState(isAdminUnlocked);
 
-  // Restore session
   useEffect(() => {
     const stored = loadStoredAnnotatorId();
     if (stored) {
@@ -24,11 +26,6 @@ export default function App() {
       setView("selectDataset");
     }
   }, []);
-
-  const handleLogin = (id: string) => {
-    setAnnotatorId(id);
-    setView("selectDataset");
-  };
 
   const handleLogout = () => {
     clearStoredAnnotatorId();
@@ -40,16 +37,31 @@ export default function App() {
   if (view === "login") {
     return (
       <AnnotatorLogin
-        onLogin={handleLogin}
+        onLogin={(id) => {
+          setAnnotatorId(id);
+          setView("selectDataset");
+        }}
         onAdmin={() => setView("admin")}
       />
     );
   }
 
+  const exitAdmin = () => {
+    lockAdmin();
+    setAdminUnlocked(false);
+    setView(annotatorId ? "selectDataset" : "login");
+  };
+
   if (view === "admin") {
-    return (
-      <AdminPanel onBack={() => setView(annotatorId ? "selectDataset" : "login")} />
-    );
+    if (!adminUnlocked) {
+      return (
+        <AdminPasswordGate
+          onUnlocked={() => setAdminUnlocked(true)}
+          onCancel={exitAdmin}
+        />
+      );
+    }
+    return <AdminPanel onBack={exitAdmin} backLabel="Lock admin" />;
   }
 
   if (view === "selectDataset") {

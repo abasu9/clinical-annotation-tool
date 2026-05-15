@@ -84,7 +84,7 @@ export default function AnnotatorLogin({ onLogin, onAdmin }: Props) {
           onClick={onAdmin}
           className="w-full mt-2 text-sm text-slate-600 hover:text-slate-800 font-medium"
         >
-          Go to Admin Panel
+          Admin (password required)
         </button>
       </div>
     </div>
