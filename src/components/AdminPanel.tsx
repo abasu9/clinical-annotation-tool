@@ -11,6 +11,7 @@ import { importDatasetFile } from "../lib/importDataset";
 import { downloadFile, toCSV } from "../lib/csv";
 import { toJSONL } from "../lib/jsonl";
 import AnnotationsViewer from "./AnnotationsViewer";
+import { ANNOTATION_GUIDELINES_URL } from "../lib/guidelines";
 
 interface Props {
   onBack: () => void;
@@ -122,14 +123,24 @@ export default function AdminPanel({ onBack }: Props) {
 
   return (
     <div className="max-w-5xl mx-auto p-6">
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-6 gap-3 flex-wrap">
         <h2 className="text-2xl font-bold text-slate-800">Admin Panel</h2>
-        <button
-          onClick={onBack}
-          className="text-sm text-indigo-600 hover:text-indigo-800 font-medium"
-        >
-          ← Back
-        </button>
+        <div className="flex items-center gap-4">
+          <a
+            href={ANNOTATION_GUIDELINES_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-sm text-indigo-600 hover:text-indigo-800 font-medium"
+          >
+            Guidelines
+          </a>
+          <button
+            onClick={onBack}
+            className="text-sm text-indigo-600 hover:text-indigo-800 font-medium"
+          >
+            ← Back
+          </button>
+        </div>
       </div>
 
       {!isSupabaseConfigured && (

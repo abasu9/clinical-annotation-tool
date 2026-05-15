@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { ANNOTATION_GUIDELINES_URL } from "../lib/guidelines";
 
 const STORAGE_KEY = "annotator_id";
 
@@ -71,9 +72,17 @@ export default function AnnotatorLogin({ onLogin, onAdmin }: Props) {
             Start Annotating
           </button>
         </form>
+        <a
+          href={ANNOTATION_GUIDELINES_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="block w-full mt-3 text-center text-sm text-indigo-600 hover:text-indigo-800 font-medium"
+        >
+          View annotation guidelines (PDF)
+        </a>
         <button
           onClick={onAdmin}
-          className="w-full mt-3 text-sm text-indigo-600 hover:text-indigo-800 font-medium"
+          className="w-full mt-2 text-sm text-slate-600 hover:text-slate-800 font-medium"
         >
           Go to Admin Panel
         </button>

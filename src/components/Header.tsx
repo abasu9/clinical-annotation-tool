@@ -1,4 +1,5 @@
 import React from "react";
+import { ANNOTATION_GUIDELINES_URL } from "../lib/guidelines";
 
 interface Props {
   annotatorId: string;
@@ -57,6 +58,14 @@ export default function Header({
               <span className="font-medium">Annotator:</span> {annotatorId}
             </span>
           )}
+          <a
+            href={ANNOTATION_GUIDELINES_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-indigo-600 hover:text-indigo-800 font-medium text-xs"
+          >
+            Guidelines
+          </a>
           <button
             onClick={onAdmin}
             className="text-indigo-600 hover:text-indigo-800 font-medium text-xs"
