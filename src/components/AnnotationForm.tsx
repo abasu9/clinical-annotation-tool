@@ -87,40 +87,58 @@ export default function AnnotationForm({ value, onChange, errors }: Props) {
             ))}
           </select>
           <p className="text-xs text-slate-500 mt-1.5">
-            Choose <strong>Yes</strong> if you will complete both annotation tasks
-            below. Choose <strong>No</strong> if this post does not need
-            summarization.
+            Choose <strong>Yes</strong> to complete both tasks below. Choose{" "}
+            <strong>No</strong> if summarization is not needed — then pick a{" "}
+            <strong>Reason</strong>.
           </p>
         </div>
 
-        {local.imageStatus === "No" && (
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">
-              Reason <span className="text-red-500">*</span>
-            </label>
-            <select
-              value={local.summarizationReason}
-              onChange={(e) => update({ summarizationReason: e.target.value })}
-              className="w-full border border-slate-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"
-            >
-              <option value="">— Select —</option>
-              {local.summarizationReason &&
-                !REASON_SET.has(local.summarizationReason) && (
-                  <option value={local.summarizationReason}>
-                    {local.summarizationReason} (legacy)
-                  </option>
-                )}
-              {SUMMARIZATION_REASON_OPTIONS.map((opt) => (
-                <option key={opt} value={opt}>
-                  {opt}
-                </option>
-              ))}
-            </select>
-            <p className="text-xs text-slate-500 mt-1.5">
-              Why is summarization not required for this post?
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-1">
+            Reason
+            {local.imageStatus === "No" && (
+              <span className="text-red-500"> *</span>
+            )}
+          </label>
+          {local.imageStatus === "Yes" ? (
+            <p className="text-sm text-slate-500 border border-slate-200 rounded px-3 py-2 bg-slate-50">
+              Not needed when summarization is <strong>Yes</strong>.
             </p>
-          </div>
-        )}
+          ) : (
+            <>
+              <select
+                value={local.summarizationReason}
+                onChange={(e) =>
+                  update({ summarizationReason: e.target.value })
+                }
+                disabled={local.imageStatus !== "No"}
+                className="w-full border border-slate-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300 disabled:bg-slate-100 disabled:text-slate-400"
+              >
+                <option value="">
+                  {local.imageStatus === "No"
+                    ? "— Select —"
+                    : "— Select No above first —"}
+                </option>
+                {local.summarizationReason &&
+                  !REASON_SET.has(local.summarizationReason) && (
+                    <option value={local.summarizationReason}>
+                      {local.summarizationReason} (legacy)
+                    </option>
+                  )}
+                {SUMMARIZATION_REASON_OPTIONS.map((opt) => (
+                  <option key={opt} value={opt}>
+                    {opt}
+                  </option>
+                ))}
+              </select>
+              <p className="text-xs text-slate-500 mt-1.5">
+                {local.imageStatus === "No"
+                  ? "Why is summarization not required?"
+                  : "Choose No for summarization to enable this dropdown."}
+              </p>
+            </>
+          )}
+        </div>
 
         <div>
           <label className="text-sm font-medium text-slate-700 mb-1 block">
