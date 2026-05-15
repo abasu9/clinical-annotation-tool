@@ -145,21 +145,75 @@ export default function AnnotationForm({ value, onChange, errors }: Props) {
             Task 1: Objective Image Description
             {tasksRequired && <span className="text-red-500"> *</span>}
           </label>
-          <p className="text-xs text-slate-500 mb-2">
-            Describe only what is visible in the image. Use color, shape,
-            approximate size, texture, location, distribution, borders, and
-            symmetry. Do not diagnose or advise.
-          </p>
+          <div className="text-xs text-slate-600 mb-3 max-h-56 overflow-y-auto border border-slate-200 rounded-lg p-3 bg-slate-50 space-y-3">
+            <p className="leading-relaxed">
+              Write a factual, clinical description of what is visible in the
+              image, as if describing it to a colleague who cannot see it.
+              Written <strong>independently</strong> of the user&apos;s text.
+              Include approximate measurements or extent within this description
+              whenever they can be reasonably estimated. Measurements are part
+              of the image description, not a separate field.
+            </p>
+            <div>
+              <p className="font-semibold text-slate-700 mb-1">Rules</p>
+              <ul className="list-disc pl-4 space-y-1 leading-relaxed">
+                <li>Describe only what is objectively visible in the image.</li>
+                <li>
+                  Do not reference the user&apos;s text, story, symptoms, or
+                  stated concern.
+                </li>
+                <li>
+                  Use descriptive language: color, shape, size, texture,
+                  location, distribution, borders, symmetry.
+                </li>
+                <li>
+                  Use uncertainty-aware phrasing: &ldquo;appears to show,&rdquo;
+                  &ldquo;consistent with,&rdquo; &ldquo;possible.&rdquo;
+                </li>
+                <li>
+                  If the image is a report/lab screenshot, describe the key
+                  visible values.
+                </li>
+              </ul>
+            </div>
+            <div>
+              <p className="font-semibold text-slate-700 mb-1">
+                Measurement rules (within this description)
+              </p>
+              <ul className="list-disc pl-4 space-y-1 leading-relaxed">
+                <li>
+                  Include approximate size, count, location, or spread when
+                  reasonably estimable.
+                </li>
+                <li>
+                  Use approximate language: &ldquo;about,&rdquo;
+                  &ldquo;approximately,&rdquo; &ldquo;small,&rdquo;
+                  &ldquo;large,&rdquo; &ldquo;localized,&rdquo;
+                  &ldquo;diffuse.&rdquo;
+                </li>
+                <li>
+                  Do not invent exact sizes unless explicitly mentioned in the
+                  image.
+                </li>
+                <li>
+                  If a report provides a measurement, preserve the exact report
+                  value.
+                </li>
+                <li>If countable lesions, approximate the count.</li>
+                <li>If diffuse, describe extent instead of size.</li>
+              </ul>
+            </div>
+          </div>
           <textarea
             value={local.objectiveImageDescription}
             onChange={(e) => update({ objectiveImageDescription: e.target.value })}
-            rows={5}
+            rows={6}
             disabled={local.imageStatus === "No"}
             className="w-full border border-slate-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300 resize-y disabled:bg-slate-100 disabled:text-slate-400"
             placeholder={
               local.imageStatus === "No"
                 ? "Not required when summarization is No"
-                : "Describe what you see in the image…"
+                : "Factual clinical description for a colleague who cannot see the image…"
             }
           />
         </div>
