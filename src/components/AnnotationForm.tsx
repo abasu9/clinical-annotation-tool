@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback } from "react";
-import { IMAGE_STATUS_OPTIONS } from "../lib/supabase";
+import { REQUIRES_SUMMARIZATION_OPTIONS } from "../lib/supabase";
 
-const STATUS_SET = new Set<string>(IMAGE_STATUS_OPTIONS);
+const SUMMARIZATION_SET = new Set<string>(REQUIRES_SUMMARIZATION_OPTIONS);
 
 export interface FormData {
   imageStatus: string;
@@ -31,15 +31,7 @@ export default function AnnotationForm({ value, onChange, errors }: Props) {
     [local, onChange]
   );
 
-  const onStatusChange = (val: string) => {
-    const patch: Partial<FormData> = { imageStatus: val };
-    if (val === "Image not assessable" && !local.objectiveImageDescription.trim()) {
-      patch.objectiveImageDescription = "Image not assessable.";
-    }
-    update(patch);
-  };
-
-  const objectiveRequired = local.imageStatus === "No medical finding visible";
+  const tasksRequired = local.imageStatus === "Yes";
 
   return (
     <div className="bg-white rounded-lg shadow border border-slate-200 flex flex-col h-full">
@@ -59,31 +51,37 @@ export default function AnnotationForm({ value, onChange, errors }: Props) {
 
         <div>
           <label className="block text-sm font-medium text-slate-700 mb-1">
-            Image Status <span className="text-red-500">*</span>
+            Does this question require summarization?{" "}
+            <span className="text-red-500">*</span>
           </label>
           <select
             value={local.imageStatus}
-            onChange={(e) => onStatusChange(e.target.value)}
+            onChange={(e) => update({ imageStatus: e.target.value })}
             className="w-full border border-slate-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"
           >
             <option value="">— Select —</option>
-            {local.imageStatus && !STATUS_SET.has(local.imageStatus) && (
+            {local.imageStatus && !SUMMARIZATION_SET.has(local.imageStatus) && (
               <option value={local.imageStatus}>
-                {local.imageStatus} (legacy — pick a new status)
+                {local.imageStatus} (legacy — pick Yes or No)
               </option>
             )}
-            {IMAGE_STATUS_OPTIONS.map((opt) => (
+            {REQUIRES_SUMMARIZATION_OPTIONS.map((opt) => (
               <option key={opt} value={opt}>
                 {opt}
               </option>
             ))}
           </select>
+          <p className="text-xs text-slate-500 mt-1.5">
+            Choose <strong>Yes</strong> if you will complete both annotation tasks
+            below. Choose <strong>No</strong> if this post does not need
+            summarization.
+          </p>
         </div>
 
         <div>
           <label className="text-sm font-medium text-slate-700 mb-1 block">
             Task 1: Objective Image Description
-            {objectiveRequired && <span className="text-red-500"> *</span>}
+            {tasksRequired && <span className="text-red-500"> *</span>}
           </label>
           <p className="text-xs text-slate-500 mb-2">
             Describe only what is visible in the image. Use color, shape,
@@ -94,15 +92,20 @@ export default function AnnotationForm({ value, onChange, errors }: Props) {
             value={local.objectiveImageDescription}
             onChange={(e) => update({ objectiveImageDescription: e.target.value })}
             rows={5}
-            className="w-full border border-slate-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300 resize-y"
-            placeholder="Describe what you see in the image…"
+            disabled={local.imageStatus === "No"}
+            className="w-full border border-slate-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300 resize-y disabled:bg-slate-100 disabled:text-slate-400"
+            placeholder={
+              local.imageStatus === "No"
+                ? "Not required when summarization is No"
+                : "Describe what you see in the image…"
+            }
           />
         </div>
 
         <div>
           <label className="text-sm font-medium text-slate-700 mb-1 block">
-            Task 2: Final Multimodal Clinical Summary{" "}
-            <span className="text-red-500">*</span>
+            Task 2: Final Multimodal Clinical Summary
+            {tasksRequired && <span className="text-red-500"> *</span>}
           </label>
           <p className="text-xs text-slate-500 mb-2">
             Combine the user&apos;s main concern with relevant image findings.
@@ -115,8 +118,13 @@ export default function AnnotationForm({ value, onChange, errors }: Props) {
               update({ finalMultimodalClinicalSummary: e.target.value })
             }
             rows={5}
-            className="w-full border border-slate-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300 resize-y"
-            placeholder={"Combine the user's concern with image findings…"}
+            disabled={local.imageStatus === "No"}
+            className="w-full border border-slate-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300 resize-y disabled:bg-slate-100 disabled:text-slate-400"
+            placeholder={
+              local.imageStatus === "No"
+                ? "Not required when summarization is No"
+                : "Combine the user's concern with image findings…"
+            }
           />
         </div>
       </div>

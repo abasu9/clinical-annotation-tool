@@ -52,9 +52,11 @@ export interface Annotation {
   updated_at: string;
 }
 
-export const IMAGE_STATUS_OPTIONS = [
-  "Image not assessable",
-  "No medical finding visible",
-] as const;
+/** Stored in DB column `image_status` (legacy name). Values: Yes | No */
+export const REQUIRES_SUMMARIZATION_OPTIONS = ["Yes", "No"] as const;
 
-export type ImageStatus = (typeof IMAGE_STATUS_OPTIONS)[number] | "";
+/** @deprecated Use REQUIRES_SUMMARIZATION_OPTIONS */
+export const IMAGE_STATUS_OPTIONS = REQUIRES_SUMMARIZATION_OPTIONS;
+
+export type RequiresSummarization =
+  (typeof REQUIRES_SUMMARIZATION_OPTIONS)[number] | "";

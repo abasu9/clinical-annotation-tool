@@ -131,15 +131,16 @@ export default function AnnotationPage({
 
   const validate = useCallback((data: FormData): string[] => {
     const errs: string[] = [];
-    if (!data.imageStatus) errs.push("Image Status is required.");
-    if (
-      data.imageStatus === "No medical finding visible" &&
-      !data.objectiveImageDescription.trim()
-    ) {
-      errs.push("Objective Image Description is required for this image status.");
+    if (!data.imageStatus) {
+      errs.push("Does this question require summarization? (Yes or No) is required.");
     }
-    if (!data.finalMultimodalClinicalSummary.trim()) {
-      errs.push("Final Multimodal Clinical Summary is required.");
+    if (data.imageStatus === "Yes") {
+      if (!data.objectiveImageDescription.trim()) {
+        errs.push("Objective Image Description is required when summarization is Yes.");
+      }
+      if (!data.finalMultimodalClinicalSummary.trim()) {
+        errs.push("Final Multimodal Clinical Summary is required when summarization is Yes.");
+      }
     }
     return errs;
   }, []);
@@ -170,12 +171,8 @@ export default function AnnotationPage({
   const persist = useCallback(
     async (status: "draft" | "submitted" | "skipped", data: FormData) => {
       if (!current) return null;
-      const objective =
-        data.imageStatus === "Image not assessable" &&
-        !data.objectiveImageDescription.trim()
-          ? "Image not assessable."
-          : data.objectiveImageDescription || null;
-      const summary = data.finalMultimodalClinicalSummary || null;
+      const objective = data.objectiveImageDescription.trim() || null;
+      const summary = data.finalMultimodalClinicalSummary.trim() || null;
       const saved = await upsertAnnotation({
         sample_id: current.id,
         dataset_id: dataset.id,
@@ -196,7 +193,7 @@ export default function AnnotationPage({
   const handleSaveDraft = async () => {
     if (!current || busy) return;
     if (!form.imageStatus) {
-      setErrors(["Image Status is required (even for a draft)."]);
+      setErrors(["Yes or No is required (even for a draft)."]);
       return;
     }
     setBusy(true);
@@ -214,7 +211,7 @@ export default function AnnotationPage({
   const handleSkip = async () => {
     if (!current || busy) return;
     if (!form.imageStatus) {
-      setErrors(["Image Status is required before skipping."]);
+      setErrors(["Yes or No is required before skipping."]);
       return;
     }
     setBusy(true);

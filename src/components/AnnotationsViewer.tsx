@@ -239,7 +239,7 @@ export default function AnnotationsViewer({
                   <th className="py-2 px-3">post_id</th>
                   <th className="py-2 px-3">Annotator</th>
                   <th className="py-2 px-3">Status</th>
-                  <th className="py-2 px-3">Image status</th>
+                  <th className="py-2 px-3">Requires summarization</th>
                   <th className="py-2 px-3">Question</th>
                   <th className="py-2 px-3">Objective description</th>
                   <th className="py-2 px-3">Final summary</th>
