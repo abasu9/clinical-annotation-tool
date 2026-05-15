@@ -352,19 +352,19 @@ export default function AnnotationPage({
       )}
 
       <div className="flex-1 overflow-auto">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 p-4 max-w-[1800px] mx-auto">
-          <div className="lg:col-span-1 flex flex-col gap-4 min-h-[500px]">
-            <div className="flex-1">
+        <div className="flex flex-col gap-4 p-4 max-w-[1800px] mx-auto">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 min-h-[min(55vh,520px)]">
+            <div className="min-h-[320px] lg:min-h-0 h-full">
+              <ImageViewer imageUrls={current?.image_urls ?? []} />
+            </div>
+            <div className="min-h-[320px] lg:min-h-0 h-full">
               <PostPanel
                 postId={current?.post_id ?? ""}
                 question={current?.question ?? ""}
               />
             </div>
-            <div className="flex-1">
-              <ImageViewer imageUrls={current?.image_urls ?? []} />
-            </div>
           </div>
-          <div className="lg:col-span-2 min-h-[500px]">
+          <div className="min-h-[360px]">
             <AnnotationForm value={form} onChange={onFormChange} errors={errors} />
           </div>
         </div>
