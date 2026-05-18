@@ -235,9 +235,9 @@ Other static hosts (Vercel, Netlify, GitHub Pages) work if `VITE_*` vars are set
 | ----- | ---- |
 | Requires summarization? | Required (Yes or No) |
 | Reason | Required when answer is **No** |
-| Task 1 & Task 2 | Required when answer is **Yes** |
+| Task 1 & Task 2 | Required when answer is **Yes**; each must be **at least 20 words** |
 
-**Draft validation** — summarization choice required; if **No**, reason required.
+**Draft validation** — summarization choice required; if **No**, reason required; if **Yes**, both tasks need 20+ words before save or submit.
 
 ---
 

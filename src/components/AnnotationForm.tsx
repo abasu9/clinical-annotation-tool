@@ -9,6 +9,7 @@ import {
   Task1GuidelineContent,
   Task2GuidelineContent,
 } from "./TaskGuidelineModal";
+import { countWords, MIN_TASK_WORDS, meetsMinWordCount } from "../lib/wordCount";
 
 const SUMMARIZATION_SET = new Set<string>(REQUIRES_SUMMARIZATION_OPTIONS);
 const REASON_SET = new Set<string>(SUMMARIZATION_REASON_OPTIONS);
@@ -50,6 +51,10 @@ export default function AnnotationForm({ value, onChange, errors }: Props) {
   );
 
   const tasksRequired = local.imageStatus === "Yes";
+  const task1Words = countWords(local.objectiveImageDescription);
+  const task2Words = countWords(local.finalMultimodalClinicalSummary);
+  const task1Ok = meetsMinWordCount(local.objectiveImageDescription);
+  const task2Ok = meetsMinWordCount(local.finalMultimodalClinicalSummary);
 
   return (
     <div className="bg-white rounded-lg shadow border border-slate-200 flex flex-col h-full">
@@ -171,6 +176,16 @@ export default function AnnotationForm({ value, onChange, errors }: Props) {
                 : "Describe what you see in the image…"
             }
           />
+          {tasksRequired && (
+            <p
+              className={`text-xs mt-1 ${
+                task1Ok ? "text-emerald-600" : "text-amber-700"
+              }`}
+            >
+              {task1Words} / {MIN_TASK_WORDS} words minimum
+              {task1Ok ? " ✓" : ""}
+            </p>
+          )}
         </div>
 
         <div>
@@ -198,6 +213,16 @@ export default function AnnotationForm({ value, onChange, errors }: Props) {
                 : "Write the clinical summary…"
             }
           />
+          {tasksRequired && (
+            <p
+              className={`text-xs mt-1 ${
+                task2Ok ? "text-emerald-600" : "text-amber-700"
+              }`}
+            >
+              {task2Words} / {MIN_TASK_WORDS} words minimum
+              {task2Ok ? " ✓" : ""}
+            </p>
+          )}
         </div>
       </div>
 

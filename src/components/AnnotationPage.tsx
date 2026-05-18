@@ -17,6 +17,29 @@ import PostPanel from "./PostPanel";
 import ImageViewer from "./ImageViewer";
 import AnnotationForm, { FormData } from "./AnnotationForm";
 import ProgressBar from "./ProgressBar";
+import {
+  countWords,
+  MIN_TASK_WORDS,
+  meetsMinWordCount,
+} from "../lib/wordCount";
+
+function taskFieldErrors(data: FormData): string[] {
+  if (data.imageStatus !== "Yes") return [];
+  const errs: string[] = [];
+  const task1Words = countWords(data.objectiveImageDescription);
+  const task2Words = countWords(data.finalMultimodalClinicalSummary);
+  if (!meetsMinWordCount(data.objectiveImageDescription)) {
+    errs.push(
+      `Task 1 must be at least ${MIN_TASK_WORDS} words (currently ${task1Words}).`
+    );
+  }
+  if (!meetsMinWordCount(data.finalMultimodalClinicalSummary)) {
+    errs.push(
+      `Task 2 must be at least ${MIN_TASK_WORDS} words (currently ${task2Words}).`
+    );
+  }
+  return errs;
+}
 
 interface Props {
   dataset: Dataset;
@@ -142,12 +165,7 @@ export default function AnnotationPage({
       }
     }
     if (data.imageStatus === "Yes") {
-      if (!data.objectiveImageDescription.trim()) {
-        errs.push("Objective Image Description is required when summarization is Yes.");
-      }
-      if (!data.finalMultimodalClinicalSummary.trim()) {
-        errs.push("Final Multimodal Clinical Summary is required when summarization is Yes.");
-      }
+      errs.push(...taskFieldErrors(data));
     }
     return errs;
   }, []);
@@ -210,6 +228,11 @@ export default function AnnotationPage({
     }
     if (needsReason) {
       setErrors(["Reason is required when summarization is No."]);
+      return;
+    }
+    const draftTaskErrs = taskFieldErrors(form);
+    if (draftTaskErrs.length > 0) {
+      setErrors(draftTaskErrs);
       return;
     }
     setBusy(true);
