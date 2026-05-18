@@ -14,22 +14,6 @@ import { countWords, MIN_TASK_WORDS, meetsMinWordCount } from "../lib/wordCount"
 const SUMMARIZATION_SET = new Set<string>(REQUIRES_SUMMARIZATION_OPTIONS);
 const REASON_SET = new Set<string>(SUMMARIZATION_REASON_OPTIONS);
 
-function TaskWordCountBadge({ words }: { words: number }) {
-  const ok = words >= MIN_TASK_WORDS;
-  return (
-    <span
-      className={`shrink-0 inline-flex items-center px-2.5 py-1 rounded-md text-sm font-semibold border ${
-        ok
-          ? "bg-emerald-50 border-emerald-400 text-emerald-800"
-          : "bg-amber-50 border-amber-400 text-amber-900"
-      }`}
-      aria-live="polite"
-    >
-      {words} / {MIN_TASK_WORDS} words{ok ? " ✓" : " required"}
-    </span>
-  );
-}
-
 export interface FormData {
   imageStatus: string;
   summarizationReason: string;
@@ -169,60 +153,51 @@ export default function AnnotationForm({ value, onChange, errors }: Props) {
           )}
         </div>
 
-
-        {tasksRequired && (
-          <div className="rounded-lg border-2 border-indigo-300 bg-indigo-50 px-4 py-3 text-sm text-indigo-950">
-            <span className="font-semibold">Required:</span> Task 1 and Task 2 must
-            each be at least <strong>{MIN_TASK_WORDS} words</strong> before you can
-            save a draft or submit.
-          </div>
-        )}
-
         <div>
-          <div className="flex items-center justify-between gap-2 mb-2 flex-wrap">
-            <div className="flex items-center gap-2">
-              <label className="text-sm font-medium text-slate-700">
-                Task 1: Objective Image Description
-                {tasksRequired && <span className="text-red-500"> *</span>}
-              </label>
-              <TaskGuidelineHelpButton
-                label="Show Task 1 guidelines"
-                onClick={() => setTask1HelpOpen(true)}
-              />
-            </div>
-            {tasksRequired && <TaskWordCountBadge words={task1Words} />}
+          <div className="flex items-center gap-2 mb-1">
+            <label className="text-sm font-medium text-slate-700">
+              Task 1: Objective Image Description
+              {tasksRequired && <span className="text-red-500"> *</span>}
+            </label>
+            <TaskGuidelineHelpButton
+              label="Show Task 1 guidelines"
+              onClick={() => setTask1HelpOpen(true)}
+            />
           </div>
           <textarea
             value={local.objectiveImageDescription}
             onChange={(e) => update({ objectiveImageDescription: e.target.value })}
             rows={6}
             disabled={local.imageStatus === "No"}
-            className={`w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300 resize-y disabled:bg-slate-100 disabled:text-slate-400 ${
-              tasksRequired && !task1Ok
-                ? "border-amber-400 ring-1 ring-amber-200"
-                : "border-slate-300"
-            }`}
+            className="w-full border border-slate-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300 resize-y disabled:bg-slate-100 disabled:text-slate-400"
             placeholder={
               local.imageStatus === "No"
                 ? "Not required when summarization is No"
-                : `Describe what you see in the image… (minimum ${MIN_TASK_WORDS} words)`
+                : "Describe what you see in the image…"
             }
           />
+          {tasksRequired && (
+            <p
+              className={`text-xs mt-1 ${
+                task1Ok ? "text-emerald-600" : "text-amber-700"
+              }`}
+            >
+              {task1Words} / {MIN_TASK_WORDS} words minimum
+              {task1Ok ? " ✓" : ""}
+            </p>
+          )}
         </div>
 
         <div>
-          <div className="flex items-center justify-between gap-2 mb-2 flex-wrap">
-            <div className="flex items-center gap-2">
-              <label className="text-sm font-medium text-slate-700">
-                Task 2: Full Multimodal Clinical Summary
-                {tasksRequired && <span className="text-red-500"> *</span>}
-              </label>
-              <TaskGuidelineHelpButton
-                label="Show Task 2 guidelines"
-                onClick={() => setTask2HelpOpen(true)}
-              />
-            </div>
-            {tasksRequired && <TaskWordCountBadge words={task2Words} />}
+          <div className="flex items-center gap-2 mb-1">
+            <label className="text-sm font-medium text-slate-700">
+              Task 2: Full Multimodal Clinical Summary
+              {tasksRequired && <span className="text-red-500"> *</span>}
+            </label>
+            <TaskGuidelineHelpButton
+              label="Show Task 2 guidelines"
+              onClick={() => setTask2HelpOpen(true)}
+            />
           </div>
           <textarea
             value={local.finalMultimodalClinicalSummary}
@@ -231,17 +206,23 @@ export default function AnnotationForm({ value, onChange, errors }: Props) {
             }
             rows={6}
             disabled={local.imageStatus === "No"}
-            className={`w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300 resize-y disabled:bg-slate-100 disabled:text-slate-400 ${
-              tasksRequired && !task2Ok
-                ? "border-amber-400 ring-1 ring-amber-200"
-                : "border-slate-300"
-            }`}
+            className="w-full border border-slate-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300 resize-y disabled:bg-slate-100 disabled:text-slate-400"
             placeholder={
               local.imageStatus === "No"
                 ? "Not required when summarization is No"
-                : `Write the clinical summary… (minimum ${MIN_TASK_WORDS} words)`
+                : "Write the clinical summary…"
             }
           />
+          {tasksRequired && (
+            <p
+              className={`text-xs mt-1 ${
+                task2Ok ? "text-emerald-600" : "text-amber-700"
+              }`}
+            >
+              {task2Words} / {MIN_TASK_WORDS} words minimum
+              {task2Ok ? " ✓" : ""}
+            </p>
+          )}
         </div>
       </div>
 
