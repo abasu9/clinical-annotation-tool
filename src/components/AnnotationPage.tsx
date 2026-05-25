@@ -16,6 +16,7 @@ import {
 import PostPanel from "./PostPanel";
 import ImageViewer from "./ImageViewer";
 import AnnotationForm, { FormData } from "./AnnotationForm";
+import AnnotationStatusPill from "./AnnotationStatusPill";
 import ProgressBar from "./ProgressBar";
 import SampleSearchBar, {
   previewQuestion,
@@ -254,31 +255,6 @@ export default function AnnotationPage({
     }
   };
 
-  const handleSkip = async () => {
-    if (!current || busy) return;
-    if (!form.imageStatus) {
-      setErrors(["Yes or No is required before skipping."]);
-      return;
-    }
-    if (needsReason) {
-      setErrors(["Reason is required when summarization is No."]);
-      return;
-    }
-    setBusy(true);
-    setErrors([]);
-    try {
-      await persist("skipped", form);
-      showToast("Skipped.");
-      const next = findNextPending(samples, annByMap, current.id);
-      if (next >= 0) moveToWithoutPrompt(next);
-      else showToast("All pending samples are complete.");
-    } catch (e: any) {
-      setErrors([e.message ?? "Failed to skip."]);
-    } finally {
-      setBusy(false);
-    }
-  };
-
   const findNextPending = (
     list: Sample[],
     map: Record<string, Annotation>,
@@ -437,18 +413,11 @@ export default function AnnotationPage({
 
   return (
     <div className="flex-1 flex flex-col">
-      <SampleSearchBar
-        value={searchQuery}
-        onChange={handleSearchQueryChange}
-        onSearch={handleSearch}
-        hits={searchHits}
-        onSelectHit={handleSelectSearchHit}
-        onCloseResults={() => setSearchHits([])}
-        disabled={busy}
-      />
       <ProgressBar progress={progress} />
-      <div className={`${interiorStrip} px-4 sm:px-6 py-2.5 flex flex-wrap items-center justify-between gap-2 text-xs sm:text-sm`}>
-        <span className="text-slate-800">
+      <div
+        className={`${interiorStrip} relative px-4 sm:px-6 py-2.5 flex flex-wrap items-center gap-3 text-xs sm:text-sm`}
+      >
+        <span className="shrink-0 text-slate-800">
           Sample{" "}
           <span className="font-bold text-slate-900">
             {index + 1} / {samples.length}
@@ -456,15 +425,27 @@ export default function AnnotationPage({
           <span className="mx-2 text-indigo-300">·</span>
           <span className="font-mono font-semibold text-indigo-800">{current?.post_id}</span>
           <span className="mx-2 text-indigo-300">·</span>
-          <span className="uppercase font-bold text-slate-900">{annStatus}</span>
+          <AnnotationStatusPill status={annStatus} />
         </span>
-        <button
-          type="button"
-          onClick={onBackToDatasets}
-          className="rounded-lg px-3 py-1.5 text-indigo-900 font-semibold ring-1 ring-indigo-300 bg-white hover:bg-indigo-50 transition shadow-sm"
-        >
-          Change dataset
-        </button>
+        <div className="ml-auto flex min-w-0 flex-1 flex-wrap items-center justify-end gap-2 sm:max-w-xl lg:max-w-2xl">
+          <SampleSearchBar
+            embedded
+            value={searchQuery}
+            onChange={handleSearchQueryChange}
+            onSearch={handleSearch}
+            hits={searchHits}
+            onSelectHit={handleSelectSearchHit}
+            onCloseResults={() => setSearchHits([])}
+            disabled={busy}
+          />
+          <button
+            type="button"
+            onClick={onBackToDatasets}
+            className="shrink-0 rounded-lg bg-white px-3 py-1.5 font-semibold text-indigo-900 shadow-sm ring-1 ring-indigo-300 transition hover:bg-indigo-50"
+          >
+            Change dataset
+          </button>
+        </div>
       </div>
 
       {toast && (
@@ -513,14 +494,6 @@ export default function AnnotationPage({
             </button>
             <button
               type="button"
-              onClick={handleSkip}
-              disabled={busy}
-              className="px-4 py-2.5 border border-orange-400/50 bg-orange-500/20 rounded-xl text-sm font-medium text-orange-100 hover:bg-orange-500/30 disabled:opacity-40 transition"
-            >
-              Skip
-            </button>
-            <button
-              type="button"
               onClick={handleSubmit}
               disabled={busy}
               className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-teal-500 to-indigo-500 text-sm font-semibold text-white shadow-lg shadow-indigo-500/40 hover:from-teal-400 hover:to-indigo-400 disabled:opacity-50 transition"
@@ -532,7 +505,7 @@ export default function AnnotationPage({
               onClick={handleNext}
               disabled={index >= samples.length - 1 || busy}
               className="px-4 py-2.5 border border-white/20 rounded-xl text-sm font-medium text-slate-200 bg-white/10 hover:bg-white/20 disabled:opacity-40 transition"
-              title="Skip to next sample without saving"
+              title="Go to next sample without saving"
             >
               Next →
             </button>

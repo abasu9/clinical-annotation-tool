@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import AnnotationStatusPill from "./AnnotationStatusPill";
 import { ExportRow, fetchExportRows } from "../lib/data";
 import { downloadFile, toCSV } from "../lib/csv";
 import { toJSONL } from "../lib/jsonl";
@@ -343,21 +344,7 @@ export default function AnnotationsViewer({
 }
 
 function StatusPill({ status }: { status: string }) {
-  const cls =
-    status === "submitted"
-      ? "bg-emerald-100 text-emerald-800 border-emerald-200"
-      : status === "draft"
-      ? "bg-amber-100 text-amber-800 border-amber-200"
-      : status === "skipped"
-      ? "bg-orange-100 text-orange-800 border-orange-200"
-      : "bg-slate-100 text-slate-700 border-slate-200";
-  return (
-    <span
-      className={`inline-block text-[11px] font-medium px-2 py-0.5 rounded border ${cls}`}
-    >
-      {status}
-    </span>
-  );
+  return <AnnotationStatusPill status={status || "unstarted"} />;
 }
 
 function Truncated({ text }: { text: string | null | undefined }) {

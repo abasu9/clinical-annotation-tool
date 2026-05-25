@@ -3,13 +3,17 @@ import {
   isAdminCredentialsConfigured,
   unlockAdmin,
 } from "../lib/adminGate";
-import { LAB_NAME } from "../lib/guidelines";
-import { btnPrimary, inputClass } from "../lib/ui";
+import { authGradientButtonClass, authGradientButtonStyle } from "../lib/ui";
+import AuthFormCard from "./AuthFormCard";
+import AuthPageLayout from "./AuthPageLayout";
 
 interface Props {
   onUnlocked: () => void;
   onCancel: () => void;
 }
+
+const fieldClass =
+  "w-full rounded-xl border border-slate-200 bg-slate-50/80 px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 transition focus:border-indigo-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/15";
 
 export default function AdminPasswordGate({ onUnlocked, onCancel }: Props) {
   const [username, setUsername] = useState("");
@@ -18,30 +22,30 @@ export default function AdminPasswordGate({ onUnlocked, onCancel }: Props) {
 
   if (!isAdminCredentialsConfigured()) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-950 px-4">
-        <div className="rounded-2xl border border-white/10 bg-white/[0.07] p-1 shadow-2xl max-w-md w-full">
-          <div className="rounded-[14px] bg-white p-8 text-center">
-            <h1 className="text-xl font-bold text-slate-800 mb-2">Admin not configured</h1>
-            <p className="text-sm text-slate-600 mb-6">
-              Set <code className="text-xs bg-slate-100 px-1 rounded">VITE_ADMIN_USERNAME</code> and{" "}
-              <code className="text-xs bg-slate-100 px-1 rounded">VITE_ADMIN_PASSWORD</code> in{" "}
-              <code className="text-xs bg-slate-100 px-1 rounded">.env</code>, then restart the dev server.
-            </p>
-            <button
-              type="button"
-              onClick={onCancel}
-              className="text-sm text-indigo-600 hover:text-indigo-800 font-medium"
-            >
-              ← Back
-            </button>
-          </div>
-        </div>
-      </div>
+      <AuthPageLayout>
+        <AuthFormCard>
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900">Admin not configured</h1>
+          <p className="mt-3 text-sm leading-relaxed text-slate-600">
+            Set <code className="rounded bg-slate-100 px-1 text-xs">VITE_ADMIN_USERNAME</code> and{" "}
+            <code className="rounded bg-slate-100 px-1 text-xs">VITE_ADMIN_PASSWORD</code> in{" "}
+            <code className="rounded bg-slate-100 px-1 text-xs">.env</code>, then restart the dev
+            server.
+          </p>
+          <button
+            type="button"
+            onClick={onCancel}
+            className="mt-6 w-full rounded-xl border border-indigo-200 bg-white py-3 text-sm font-semibold text-indigo-700 transition hover:border-indigo-300 hover:bg-indigo-50"
+          >
+            ← Back to login
+          </button>
+        </AuthFormCard>
+      </AuthPageLayout>
     );
   }
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!username.trim() || !password) return;
     setError("");
     if (unlockAdmin(username, password)) {
       onUnlocked();
@@ -51,64 +55,71 @@ export default function AdminPasswordGate({ onUnlocked, onCancel }: Props) {
     setPassword("");
   };
 
+  const canSubmit = Boolean(username.trim() && password);
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-950 px-4">
-      <div className="w-full max-w-md">
-        <p className="text-center text-xs text-teal-200/80 mb-4">{LAB_NAME}</p>
-        <div className="rounded-2xl border border-white/10 bg-white/[0.07] p-1 shadow-2xl">
-          <div className="rounded-[14px] bg-white p-8">
-            <h1 className="text-2xl font-bold text-slate-800 mb-6 text-center">Admin signin</h1>
-            {error && (
-              <div className="mb-3 p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm">
-                {error}
-              </div>
-            )}
-            <form onSubmit={submit} className="space-y-3">
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">
-                  Username
-                </label>
-                <input
-                  type="text"
-                  autoComplete="username"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  className={inputClass}
-                  autoFocus
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">
-                  Password
-                </label>
-                <input
-                  type="password"
-                  autoComplete="current-password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className={inputClass}
-                  required
-                />
-              </div>
-              <button
-                type="submit"
-                disabled={!username.trim() || !password}
-                className={`w-full ${btnPrimary}`}
-              >
-                Sign in
-              </button>
-            </form>
-            <button
-              type="button"
-              onClick={onCancel}
-              className="w-full mt-3 text-sm text-slate-600 hover:text-slate-800 font-medium"
-            >
-              ← Back
-            </button>
+    <AuthPageLayout>
+      <AuthFormCard>
+        <h2 className="text-2xl font-bold tracking-tight text-slate-900">
+          <span className="bg-gradient-to-r from-teal-500 via-indigo-500 to-violet-500 bg-clip-text text-transparent">
+            Admin
+          </span>
+        </h2>
+
+        {error && (
+          <div className="mt-4 rounded-xl border border-red-200 bg-red-50 px-3 py-2.5 text-sm text-red-700">
+            {error}
           </div>
-        </div>
-      </div>
-    </div>
+        )}
+
+        <form onSubmit={submit} className="mt-7 space-y-4">
+          <div>
+            <label htmlFor="admin-username" className="mb-1.5 block text-sm font-medium text-slate-600">
+              Username
+            </label>
+            <input
+              id="admin-username"
+              type="text"
+              autoComplete="username"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              className={fieldClass}
+              autoFocus
+              required
+            />
+          </div>
+          <div>
+            <label htmlFor="admin-password" className="mb-1.5 block text-sm font-medium text-slate-600">
+              Password
+            </label>
+            <input
+              id="admin-password"
+              type="password"
+              autoComplete="current-password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className={fieldClass}
+              required
+            />
+          </div>
+          <button
+            type="submit"
+            style={authGradientButtonStyle}
+            aria-disabled={!canSubmit}
+            className={authGradientButtonClass(canSubmit)}
+          >
+            Sign in
+          </button>
+        </form>
+
+        <button
+          type="button"
+          onClick={onCancel}
+          className="mt-4 w-full rounded-xl border border-indigo-200 bg-white py-3 text-sm font-semibold text-indigo-700 transition hover:border-indigo-300 hover:bg-indigo-50"
+        >
+          ← Back to login
+        </button>
+      </AuthFormCard>
+    </AuthPageLayout>
   );
 }

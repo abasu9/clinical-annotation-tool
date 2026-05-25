@@ -1,7 +1,26 @@
+import type { CSSProperties } from "react";
+
+/** Cyan → indigo → violet — login / admin primary actions */
+export const authGradientButtonStyle: CSSProperties = {
+  background: "linear-gradient(90deg, #0d9488 0%, #4f46e5 50%, #7c3aed 100%)",
+  color: "#ffffff",
+};
+
+export const authGradientButtonClass = (enabled: boolean) =>
+  `w-full rounded-xl border-0 py-3 text-sm font-semibold shadow-md shadow-indigo-600/50 transition ${
+    enabled
+      ? "hover:shadow-lg hover:shadow-indigo-600/60 active:scale-[0.99]"
+      : "cursor-not-allowed"
+  }`;
+
+/** Gradient headline on dark auth aside — same hues as primary buttons */
+export const authGradientTextClass =
+  "bg-gradient-to-r from-teal-400 via-indigo-400 to-violet-400 bg-clip-text text-transparent";
+
 /** Shared Tailwind class groups for interior pages (matches login branding). */
 
 export const appInteriorBg =
-  "min-h-screen bg-gradient-to-br from-indigo-100/90 via-slate-100 to-teal-100/70";
+  "min-h-screen bg-gradient-to-b from-indigo-50/95 via-slate-50 to-teal-50/70";
 
 export const contentCanvas =
   "bg-gradient-to-b from-indigo-50/50 via-slate-50/80 to-teal-50/40";

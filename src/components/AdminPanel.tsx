@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { isSupabaseConfigured, Dataset } from "../lib/supabase";
 import {
   DatasetProgress,
@@ -11,6 +11,7 @@ import { importDatasetFile } from "../lib/importDataset";
 import { downloadFile, toCSV } from "../lib/csv";
 import { toJSONL } from "../lib/jsonl";
 import AnnotationsViewer from "./AnnotationsViewer";
+import DashboardStatCards from "./DashboardStatCards";
 import { ANNOTATION_GUIDELINES_URL } from "../lib/guidelines";
 import { adminCard, btnPrimary, inputClass } from "../lib/ui";
 
@@ -55,6 +56,27 @@ export default function AdminPanel({ onBack, backLabel = "Back" }: Props) {
   useEffect(() => {
     load();
   }, [load]);
+
+  const summary = useMemo(() => {
+    let submitted = 0;
+    let remaining = 0;
+    const totalSamples = datasets.reduce((sum, d) => sum + d.total_samples, 0);
+    for (const d of datasets) {
+      const p = progress[d.id];
+      if (p) {
+        submitted += p.submitted;
+        remaining += p.remaining;
+      } else {
+        remaining += d.total_samples;
+      }
+    }
+    return {
+      datasets: datasets.length,
+      totalSamples,
+      submitted,
+      remaining,
+    };
+  }, [datasets, progress]);
 
   const handleImport = async () => {
     if (!name.trim() && !file) {
@@ -149,6 +171,16 @@ export default function AdminPanel({ onBack, backLabel = "Back" }: Props) {
         </button>
       </div>
 
+      <DashboardStatCards
+        className="mb-6"
+        stats={[
+          { label: "Total datasets", value: summary.datasets },
+          { label: "Total samples", value: summary.totalSamples },
+          { label: "Submitted", value: summary.submitted, tone: "emerald" },
+          { label: "Remaining", value: summary.remaining, tone: "indigo" },
+        ]}
+      />
+
       {!isSupabaseConfigured && (
         <div className="mb-4 p-3 rounded bg-amber-50 border border-amber-200 text-amber-800 text-sm">
           Supabase is not configured. Set <code>VITE_SUPABASE_URL</code> and{" "}
@@ -167,59 +199,93 @@ export default function AdminPanel({ onBack, backLabel = "Back" }: Props) {
         </div>
       )}
 
+      <div className="mb-6 flex gap-3 rounded-xl border border-sky-200/80 bg-sky-50/90 px-4 py-3 text-sm text-slate-700 ring-1 ring-sky-100/80">
+        <span className="shrink-0 text-sky-600" aria-hidden>
+          ℹ
+        </span>
+        <p>
+          Images are loaded from public or signed Cloudflare R2 URLs. Dataset files
+          should contain <code className="rounded bg-white/80 px-1 text-xs">image_urls</code> or{" "}
+          <code className="rounded bg-white/80 px-1 text-xs">image_paths</code>.
+        </p>
+      </div>
+
       <div className={`${adminCard} mb-6`}>
-        <h3 className="text-lg font-semibold mb-3 text-slate-800">
+        <h3 className="text-lg font-semibold text-slate-800">
           Import dataset (.csv or .jsonl)
         </h3>
-        <div className="flex flex-wrap gap-3 items-end">
-          <div className="flex-1 min-w-[200px]">
-            <label className="block text-sm text-slate-600 mb-1">Dataset name</label>
+
+        <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-x-4">
+          <div className="flex min-w-0 flex-col">
+            <label
+              htmlFor="admin-dataset-name"
+              className="text-sm font-medium leading-5 text-slate-600"
+            >
+              Dataset name
+            </label>
             <input
+              id="admin-dataset-name"
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="e.g. Clinical QA Batch 1"
-              className={inputClass}
+              className={`${inputClass} mt-1.5 box-border h-11 py-0`}
             />
           </div>
-          <div className="flex-1 min-w-[200px]">
-            <label className="block text-sm text-slate-600 mb-1">File</label>
-            <input
-              type="file"
-              accept=".csv,.jsonl,.ndjson,text/csv,application/json,text/plain"
-              onChange={(e) => {
-                setFile(e.target.files?.[0] ?? null);
-                setError("");
-              }}
-              className="w-full text-sm file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:bg-indigo-50 file:text-indigo-700"
-            />
-            {file ? (
-              <p className="mt-1 text-xs text-emerald-700 font-medium">
-                Selected: {file.name} ({(file.size / 1024).toFixed(0)} KB)
-              </p>
-            ) : (
-              <p className="mt-1 text-xs text-slate-500">
-                Pick <code>Dataset/data_sample_100.prepared.jsonl</code> from the project folder.
-              </p>
-            )}
+          <div className="flex min-w-0 flex-col">
+            <span className="text-sm font-medium leading-5 text-slate-600">File upload</span>
+            <div className="mt-1.5 box-border flex h-11 w-full items-center gap-2 rounded-xl border border-indigo-200/80 bg-white px-3 shadow-sm">
+              <label
+                htmlFor="admin-import-file"
+                className="shrink-0 cursor-pointer rounded-lg bg-indigo-50 px-2.5 py-1 text-sm font-semibold leading-none text-indigo-700 ring-1 ring-indigo-200 transition hover:bg-indigo-100"
+              >
+                Choose file
+              </label>
+              <span
+                className={`min-w-0 flex-1 truncate text-sm leading-none ${
+                  file ? "font-medium text-slate-800" : "text-slate-500"
+                }`}
+              >
+                {file ? `${file.name} (${(file.size / 1024).toFixed(0)} KB)` : "No file chosen"}
+              </span>
+              <input
+                id="admin-import-file"
+                type="file"
+                accept=".csv,.jsonl,.ndjson,text/csv,application/json,text/plain"
+                className="sr-only"
+                onChange={(e) => {
+                  setFile(e.target.files?.[0] ?? null);
+                  setError("");
+                }}
+              />
+            </div>
           </div>
-          <button
-            onClick={handleImport}
-            disabled={importing || !isSupabaseConfigured || !name.trim() || !file}
-            className={`${btnPrimary} disabled:opacity-50`}
-          >
-            {importing ? "Importing…" : "Import"}
-          </button>
         </div>
-        {importStatus && (
-          <p className="mt-3 text-sm text-slate-500">{importStatus}</p>
-        )}
-        <p className="mt-3 text-xs text-slate-500">
-          Required columns: <code>post_id</code>, <code>question</code>,{" "}
-          <code>image_urls</code> or <code>image_paths</code>. Images themselves
-          are not uploaded here — put public/signed Cloudflare R2 URLs in the
-          dataset file.
-        </p>
+
+        <div className="mt-3 rounded-lg border border-slate-200/80 bg-slate-50/80 px-3 py-2.5 text-xs text-slate-600 sm:mt-4">
+          <p className="font-semibold text-slate-700">Required format:</p>
+          <p className="mt-0.5 font-mono text-[11px] text-slate-600">
+            post_id, question, image_urls/image_paths
+          </p>
+        </div>
+
+        <div className="mt-4 grid grid-cols-1 items-center gap-2 sm:grid-cols-2 sm:gap-x-4">
+          <div className="min-w-0">
+            {importStatus ? (
+              <p className="text-sm text-slate-500">{importStatus}</p>
+            ) : null}
+          </div>
+          <div className="flex justify-stretch sm:justify-end">
+            <button
+              type="button"
+              onClick={handleImport}
+              disabled={importing || !isSupabaseConfigured || !name.trim() || !file}
+              className={`${btnPrimary} w-full sm:w-auto sm:min-w-[8.5rem] disabled:opacity-50`}
+            >
+              {importing ? "Importing…" : "Import"}
+            </button>
+          </div>
+        </div>
       </div>
 
       <div className={adminCard}>

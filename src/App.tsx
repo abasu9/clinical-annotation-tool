@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Dataset } from "./lib/supabase";
+import AppInteriorShell from "./components/AppInteriorShell";
 import Header from "./components/Header";
 import AnnotatorLogin, {
   clearStoredAnnotatorId,
@@ -10,7 +11,6 @@ import DatasetSelector from "./components/DatasetSelector";
 import AnnotationPage from "./components/AnnotationPage";
 import AdminPasswordGate from "./components/AdminPasswordGate";
 import { isAdminUnlocked, lockAdmin } from "./lib/adminGate";
-import { appInteriorBg } from "./lib/ui";
 
 type View = "login" | "admin" | "selectDataset" | "annotate";
 
@@ -63,37 +63,38 @@ export default function App() {
       );
     }
     return (
-      <div className={`${appInteriorBg} flex flex-col`}>
+      <AppInteriorShell>
         <Header
           annotatorId={annotatorId}
           onAdmin={() => {}}
           onLogout={exitAdmin}
         />
         <AdminPanel onBack={exitAdmin} backLabel="Logout" />
-      </div>
+      </AppInteriorShell>
     );
   }
 
   if (view === "selectDataset") {
     return (
-      <div className={`${appInteriorBg} flex flex-col`}>
+      <AppInteriorShell>
         <Header
           annotatorId={annotatorId}
           onAdmin={() => setView("admin")}
           onLogout={handleLogout}
         />
         <DatasetSelector
+          annotatorId={annotatorId}
           onSelect={(d) => {
             setDataset(d);
             setView("annotate");
           }}
         />
-      </div>
+      </AppInteriorShell>
     );
   }
 
   return (
-    <div className={`${appInteriorBg} flex flex-col`}>
+    <AppInteriorShell>
       <Header
         annotatorId={annotatorId}
         datasetName={dataset?.name}
@@ -110,6 +111,6 @@ export default function App() {
           }}
         />
       )}
-    </div>
+    </AppInteriorShell>
   );
 }

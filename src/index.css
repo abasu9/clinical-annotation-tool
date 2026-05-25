@@ -13,3 +13,11 @@ body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
     "Helvetica Neue", Arial, sans-serif;
 }
+
+@layer components {
+  /* Overrides Tailwind preflight `background-image: none` on buttons */
+  .btn-continue-active {
+    background: linear-gradient(to right, #14b8a6, #6366f1, #8b5cf6) !important;
+    color: #fff !important;
+  }
+}

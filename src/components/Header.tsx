@@ -1,9 +1,12 @@
 import React from "react";
+import AnnotationStatusPill from "./AnnotationStatusPill";
 import {
   ANNOTATION_GUIDELINES_URL,
   LAB_NAME,
   ADVISOR_NAME,
   ADVISOR_PROFILE_URL,
+  UIC_LOGO_SRC,
+  UNIVERSITY_NAME,
 } from "../lib/guidelines";
 
 interface Props {
@@ -16,13 +19,6 @@ interface Props {
   onLogout: () => void;
 }
 
-const STATUS_STYLES: Record<string, string> = {
-  unstarted: "bg-white/15 text-slate-200 ring-1 ring-white/20",
-  draft: "bg-amber-400/20 text-amber-100 ring-1 ring-amber-300/30",
-  submitted: "bg-emerald-400/20 text-emerald-100 ring-1 ring-emerald-300/30",
-  skipped: "bg-orange-400/20 text-orange-100 ring-1 ring-orange-300/30",
-};
-
 export default function Header({
   annotatorId,
   datasetName,
@@ -33,36 +29,34 @@ export default function Header({
   onLogout,
 }: Props) {
   return (
-    <header className="bg-slate-950 text-white border-b border-white/10 shadow-lg shadow-slate-900/20 px-4 sm:px-6 py-3">
-      <div className="max-w-[1800px] mx-auto flex items-center justify-between flex-wrap gap-3">
-        <div className="flex items-center gap-3 min-w-0">
-          <div className="hidden sm:flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-teal-600 shadow-md shadow-indigo-900/50">
-            <svg
-              className="h-5 w-5 text-white"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              strokeWidth={1.5}
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"
-              />
-            </svg>
-          </div>
+    <header className="relative shrink-0 bg-slate-950 text-white px-4 sm:px-6 py-2.5 border-b border-white/[0.08]">
+      <div
+        className="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-teal-500/0 via-teal-400/45 to-indigo-400/0"
+        aria-hidden
+      />
+      <div className="mx-auto grid max-w-[1800px] grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-x-3 gap-y-2 sm:gap-x-4">
+        <div className="col-start-1 flex min-w-0 items-center gap-3">
+          <img
+            src={UIC_LOGO_SRC}
+            alt="University of Illinois Chicago"
+            className="h-11 w-11 shrink-0 object-contain sm:h-14 sm:w-14"
+            width={56}
+            height={56}
+          />
           <div className="min-w-0">
-            <h1 className="text-base sm:text-lg font-bold tracking-tight truncate">
-              Clinical Annotation Tool
-            </h1>
-            <p className="text-xs text-teal-200/90 truncate">{LAB_NAME}</p>
-            <p className="text-[11px] text-slate-400 mt-0.5 hidden md:block">
+            <p className="truncate text-sm font-semibold leading-tight text-teal-200/95">
+              {LAB_NAME}
+            </p>
+            <p className="mt-0.5 truncate text-xs leading-snug text-slate-400">
+              {UNIVERSITY_NAME}
+            </p>
+            <p className="mt-0.5 hidden text-[11px] text-slate-500 lg:block">
               Advisor:{" "}
               <a
                 href={ADVISOR_PROFILE_URL}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-indigo-300 hover:text-white hover:underline"
+                className="text-indigo-300/90 hover:text-white hover:underline"
               >
                 {ADVISOR_NAME}
               </a>
@@ -70,7 +64,11 @@ export default function Header({
           </div>
         </div>
 
-        <div className="flex items-center gap-2 sm:gap-3 text-xs sm:text-sm flex-wrap justify-end">
+        <h1 className="col-start-2 px-1 text-center text-sm font-bold tracking-tight whitespace-nowrap sm:text-base lg:text-lg">
+          Clinical Annotation Tool
+        </h1>
+
+        <div className="col-start-3 flex flex-wrap items-center justify-end gap-1.5 sm:gap-2 text-xs">
           {datasetName && (
             <span className="rounded-lg bg-white/10 px-2.5 py-1 text-slate-200 ring-1 ring-white/10">
               <span className="text-slate-400">Dataset</span> {datasetName}
@@ -82,13 +80,7 @@ export default function Header({
             </span>
           ) : null}
           {annotationStatus && (
-            <span
-              className={`px-2.5 py-1 rounded-lg text-xs font-semibold uppercase ${
-                STATUS_STYLES[annotationStatus] ?? STATUS_STYLES.unstarted
-              }`}
-            >
-              {annotationStatus}
-            </span>
+            <AnnotationStatusPill status={annotationStatus} variant="dark" />
           )}
           {annotatorId && (
             <span className="rounded-lg bg-white/10 px-2.5 py-1 text-slate-200 ring-1 ring-white/10">
