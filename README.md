@@ -1,31 +1,67 @@
 # Clinical Annotation Tool
 
 A lean, **serverless** web app for expert annotation of multimodal clinical
-posts (text + images). Designed for small expert teams who need a clean
-interface, structured outputs, and zero backend ops.
+posts (text + images). Built for the **UIC Biomedical NLP Lab** - structured
+outputs, a clear annotator workflow, and no backend server to operate.
 
 Each sample can produce two annotation outputs (when summarization is required):
 
-1. **Objective Image Description** — what is literally visible in the image
-2. **Final Multimodal Clinical Summary** — clinician-grade synthesis of post + image
+1. **Objective Image Description** - what is literally visible in the image
+2. **Final Multimodal Clinical Summary** - clinician-grade synthesis of post + image
 
 > **Live app:** [https://clinical-annotation-tool.abhishek-basu2010.workers.dev](https://clinical-annotation-tool.abhishek-basu2010.workers.dev)  
 > **Source:** [github.com/abasu9/clinical-annotation-tool](https://github.com/abasu9/clinical-annotation-tool)
 
 ---
 
+## Screenshots
+
+### Annotator login
+
+Two-column landing page with lab branding and a sign-in card for annotator IDs.
+
+![Annotator login](docs/screenshots/annotator-login.png)
+
+### Choose a dataset
+
+Dashboard stats at the top (datasets, samples, your submitted / remaining), then pick a dataset to open.
+
+![Choose a dataset](docs/screenshots/dataset-picker.png)
+
+### Annotation workspace
+
+Image + post side by side, inline sample search, progress bar, and structured annotation form (see live app after opening a dataset).
+
+### Admin login
+
+Separate admin gate with username and password.
+
+![Admin login](docs/screenshots/admin-login.png)
+
+### Admin panel
+
+Summary cards, Cloudflare R2 guidance, structured import form, and datasets table with progress columns.
+
+![Admin panel](docs/screenshots/admin-panel.png)
+
+---
+
 ## Highlights
 
-- **Single-page React app** — no backend server; Supabase + R2 from the browser.
+- **Single-page React app** - Supabase + R2 from the browser; static hosting on Cloudflare Workers.
+- **Polished auth UI** - shared login layout, gradient primary actions, UIC branding.
+- **Dashboard stats** - summary cards on the dataset picker (per annotator) and admin panel (global).
 - **Two roles:**
-  - **Annotators** — enter an **annotator ID** (stored in `localStorage`).
-  - **Admins** — **username + password** to import datasets, view progress, export, and delete.
-- **Annotation layout** — image (left) and original post (right); annotation form below.
-- **Summarization gate** — *Does this question require summarization?* (Yes / No); if **No**, a **Reason** is required; if **Yes**, both task fields are required on submit.
-- **In-portal annotation viewer** — filter by status / annotator / search; expand rows; export filtered or full CSV/JSONL.
-- **Annotation guidelines** — PDF link in the header and on the login screen (`public/annotation_guidelines.pdf`).
-- **Dataset prep script** — expand multi-image local folders and rewrite paths to public R2 URLs.
-- **Cloudflare Workers** hosting with Git-connected deploy (`wrangler.jsonc`).
+  - **Annotators** - enter an **annotator ID** (stored in `localStorage`).
+  - **Admins** - **username + password** to import datasets, view progress, export, and delete.
+- **Annotation layout** - image (left) and original post (right); annotation form below.
+- **Sample search** - find samples by `post_id` or question text; toolbar beside **Change dataset**.
+- **Summarization gate** - *Does this question require summarization?* (Yes / No); if **No**, a **Reason** is required; if **Yes**, both task fields are required on submit.
+- **Status labels** - soft pills (e.g. **Not started**, **Draft**, **Submitted**) on the annotation toolbar and in viewers.
+- **In-portal annotation viewer** - filter by status / annotator / search; expand rows; export filtered or full CSV/JSONL.
+- **Cloudflare R2** - images load from public or signed R2 URLs in the dataset file (not uploaded through the UI).
+- **Dataset prep script** - expand multi-image local folders and rewrite paths to public R2 URLs.
+- **Annotation guidelines** - PDF on the login screen and in the header (`public/annotation_guidelines.pdf`).
 
 ---
 
@@ -33,8 +69,8 @@ Each sample can produce two annotation outputs (when summarization is required):
 
 | Role | How to access | What they can do |
 |------|----------------|------------------|
-| **Annotator** | Enter annotator ID on the home screen | Pick a dataset, annotate samples, save draft / submit / skip |
-| **Admin** | Click **Admin** → sign in | Import CSV/JSONL, view annotations, download exports, delete datasets |
+| **Annotator** | Enter annotator ID on the home screen | View stats, pick a dataset, annotate samples, save draft / submit |
+| **Admin** | Click **Admin access** → sign in | View global stats, import CSV/JSONL, browse annotations, export, delete datasets |
 
 **Default admin credentials** (override with env vars before production):
 
@@ -43,7 +79,7 @@ Each sample can produce two annotation outputs (when summarization is required):
 
 Admin unlock lasts about **8 hours** per browser tab (`sessionStorage`). Use **Logout** in the admin panel to lock again immediately.
 
-Annotators do **not** need a password — only a unique annotator ID (shown on exports).
+Annotators do **not** need a password - only a unique annotator ID (shown on exports).
 
 ---
 
@@ -98,7 +134,7 @@ git clone https://github.com/abasu9/clinical-annotation-tool.git
 cd clinical-annotation-tool
 npm install
 cp .env.example .env    # add Supabase URL + anon key (admin creds optional)
-npm run dev             # http://localhost:5173 (opens in browser)
+npm run dev             # http://localhost:5173
 ```
 
 | Command            | Purpose                                |
@@ -130,8 +166,8 @@ If your project predates `summarization_reason`, also run
 ### 3. Cloudflare R2 (images)
 
 1. **R2 → Create bucket** (e.g. `clinical-annotation-tool`).
-2. **Settings → Public Development URL** — enable it (e.g. `https://pub-xxxxx.r2.dev`). The app loads images in `<img>` tags from this HTTPS URL, not from the S3 API endpoint.
-3. Upload image files (see below). The annotation app **does not** upload images — only stores URLs in the JSONL.
+2. **Settings → Public Development URL** - enable it (e.g. `https://pub-xxxxx.r2.dev`). The app loads images in `<img>` tags from this HTTPS URL, not from the S3 API endpoint.
+3. Upload image files (see below). The annotation app **does not** upload images - only stores URLs in the JSONL.
 
 Your prepared dataset expects keys like:
 
@@ -156,9 +192,7 @@ brew install awscli
 aws --version
 ```
 
-**C. Upload the local folder** (231 files in `images_sample_100/`)
-
-Replace paths and IDs with yours:
+**C. Upload the local folder**
 
 ```bash
 export R2_ACCOUNT_ID="YOUR_ACCOUNT_ID"
@@ -166,7 +200,7 @@ export R2_ACCESS_KEY_ID="YOUR_ACCESS_KEY"
 export R2_SECRET_ACCESS_KEY="YOUR_SECRET_KEY"
 export R2_BUCKET="clinical-annotation-tool"
 export R2_PREFIX="Multimodal images"
-export LOCAL_DIR="/Users/you/Documents/JOB/100 sample/images_sample_100"
+export LOCAL_DIR="/path/to/your/images_folder"
 
 chmod +x scripts/upload-images-to-r2.sh
 ./scripts/upload-images-to-r2.sh
@@ -180,22 +214,19 @@ aws s3 cp "$LOCAL_DIR" "s3://${R2_BUCKET}/${R2_PREFIX}/" \
   --endpoint-url "https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com"
 ```
 
-Use region **`auto`** (or leave default / `us-east-1` — both work with R2).
-
 **D. Verify**
 
 Open one URL in the browser (must match your public dev URL and prefix):
 
-`https://pub-62e154ba51f54302ab158d5689135563.r2.dev/Multimodal%20images/1r5q0z8_0.jpg`
+`https://pub-xxxxx.r2.dev/Multimodal%20images/<post_id>_0.jpg`
 
-If it loads, import `Dataset/data_sample_100.prepared.jsonl` in Admin.
+If it loads, import your prepared JSONL in Admin.
 
 **Notes**
 
-- S3 endpoint: `https://<ACCOUNT_ID>.r2.cloudflarestorage.com` — for **upload tools only**.
-- Public browser URL: `https://pub-….r2.dev/…` — for the **annotation app**.
-- Dashboard upload works for small batches; use the CLI for all ~231 files.
-- Prefix folder name must match what you used in `prepare-dataset.mjs` / prepared JSONL (`Multimodal images` vs `images_sample_100`).
+- S3 endpoint: `https://<ACCOUNT_ID>.r2.cloudflarestorage.com` - for **upload tools only**.
+- Public browser URL: `https://pub-….r2.dev/…` - for the **annotation app**.
+- Prefix folder name must match what you used in `prepare-dataset.mjs` / prepared JSONL.
 
 ### 4. Dataset file format
 
@@ -222,7 +253,7 @@ DEMO_001,"Synthetic placeholder post","https://pub-xxxx.r2.dev/images_sample_100
 {"post_id":"DEMO_001","question":"Synthetic placeholder post","image_urls":["https://pub-xxxx.r2.dev/images_sample_100/DEMO_001_0.jpg"]}
 ```
 
-> **XLSX** is not supported — convert to CSV or JSONL first.
+> **XLSX** is not supported - convert to CSV or JSONL first.
 
 ### 5. Prepare local data for R2 (optional)
 
@@ -236,7 +267,7 @@ node scripts/prepare-dataset.mjs \
   --output "Dataset/data_sample_100.prepared.jsonl"
 ```
 
-Import the **prepared** JSONL in Admin — not the raw file with local paths.
+Import the **prepared** JSONL in Admin - not the raw file with local paths.
 
 Reference file in repo: `Dataset/data_sample_100.prepared.jsonl` (100 rows, one image per post).
 
@@ -244,13 +275,13 @@ Reference file in repo: `Dataset/data_sample_100.prepared.jsonl` (100 rows, one 
 
 ```bash
 node scripts/prepare-dataset.mjs \
-  --input  "/Users/you/Documents/JOB/MultimodalQsumm/arctic_data.jsonl" \
-  --images "/Users/you/Documents/JOB/MultimodalQsumm/images" \
+  --input  "/path/to/arctic_data.jsonl" \
+  --images "/path/to/images" \
   --base   "https://pub-xxxx.r2.dev/Multimodal images" \
   --output "Dataset/arctic_data.prepared.jsonl"
 ```
 
-Uses `title` + `selftext` as `question` and R2 URLs under `Multimodal images/` (must match your upload prefix). Import `Dataset/arctic_data.prepared.jsonl` in Admin.
+Uses `title` + `selftext` as `question` when needed. Import `Dataset/arctic_data.prepared.jsonl` in Admin.
 
 ### 6. Environment variables
 
@@ -262,23 +293,23 @@ cp .env.example .env
 VITE_SUPABASE_URL=https://YOUR-PROJECT.supabase.co
 VITE_SUPABASE_ANON_KEY=YOUR_PUBLIC_ANON_KEY
 
-# Optional — defaults to admin / admin123 if omitted
+# Optional - defaults to admin / admin123 if omitted
 VITE_ADMIN_USERNAME=admin
 VITE_ADMIN_PASSWORD=admin123
 ```
 
 Restart `npm run dev` after changing `.env`.
 
-Vite inlines `VITE_*` at **build time**. On Cloudflare, set them under **Settings → Build → Variables and Secrets** (not runtime-only vars).
+Vite inlines `VITE_*` at **build time**. On Cloudflare, set them under **Settings → Build → Variables and Secrets**.
 
-> Admin credentials are also compiled into the JS bundle (prototype-only security). Change them before a public launch.
+> Admin credentials are compiled into the JS bundle (prototype-only security). Change them before a public launch.
 
 ### 7. Deploy
 
 **Cloudflare (recommended)**
 
 1. **Workers & Pages → Connect to Git** → this repo.
-2. Build: `npm run build` → output `dist` → deploy `npx wrangler deploy` (or use dashboard defaults + `wrangler.jsonc`).
+2. Build: `npm run build` → output `dist`.
 3. Build variables: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, and optionally `VITE_ADMIN_USERNAME` / `VITE_ADMIN_PASSWORD`.
 4. Push to `main` to redeploy.
 
@@ -288,20 +319,19 @@ Vite inlines `VITE_*` at **build time**. On Cloudflare, set them under **Setting
 npm run deploy   # requires wrangler login or CLOUDFLARE_API_TOKEN
 ```
 
-Other static hosts (Vercel, Netlify, GitHub Pages) work if `VITE_*` vars are set at build time and `base: "./"` in `vite.config.ts` is kept.
-
 ---
 
 ## Annotation workflow (annotators)
 
-1. Open the app → enter **annotator ID** → **Start Annotating**.
-2. Select a **dataset**.
+1. Open the app → enter **annotator ID** → **Continue**.
+2. Review dashboard stats → select a **dataset** → **Open**.
 3. For each sample:
    - Read the **post** (right) and view **image(s)** (left).
+   - Use **Find sample** in the toolbar to jump by `post_id` or question text.
    - **Does this question require summarization?** → **Yes** or **No**.
    - If **No** → choose **Reason** (required for draft and submit).
-   - If **Yes** → complete **Task 1** (objective image description) and **Task 2** (clinical summary); guidelines appear in scrollable boxes above each field.
-4. **Save Draft**, **Skip**, **Submit & Next**, or **Previous / Next**.
+   - If **Yes** → complete **Task 1** and **Task 2** (guideline help above each field).
+4. **Save Draft**, **Submit & Next**, **Previous**, or **Next** (next without saving).
 
 **Submit validation**
 
@@ -311,18 +341,17 @@ Other static hosts (Vercel, Netlify, GitHub Pages) work if `VITE_*` vars are set
 | Reason | Required when answer is **No** |
 | Task 1 & Task 2 | Required when answer is **Yes**; each must be **at least 20 words** |
 
-**Draft validation** — summarization choice required; if **No**, reason required; if **Yes**, both tasks need 20+ words before save or submit.
-
 ---
 
 ## Admin workflow
 
-1. **Admin** → sign in (`admin` / `admin123` by default).
-2. **Import** — dataset name + `.csv` or `.jsonl`.
-3. **View** — in-portal browser with filters and filtered export.
-4. **CSV / JSONL** — full-dataset download per row.
-5. **Delete** — remove a dataset and all its samples/annotations.
-6. **Logout** — locks admin for this tab.
+1. **Admin access** → sign in.
+2. Review **dashboard stats** (datasets, samples, submitted, remaining).
+3. **Import** - dataset name + `.csv` or `.jsonl` (see R2 note and required columns in the UI).
+4. **View** - in-portal browser with filters and filtered export.
+5. **CSV / JSONL** - full-dataset download per row.
+6. **Delete** - remove a dataset and all its samples/annotations.
+7. **Logout** - locks admin for this tab.
 
 Exported rows include:
 
@@ -343,7 +372,7 @@ Exported rows include:
 }
 ```
 
-(`image_status` stores Yes/No for “requires summarization”; legacy values may still appear in old rows.)
+(`image_status` stores Yes/No for “requires summarization”.)
 
 ---
 
@@ -351,38 +380,42 @@ Exported rows include:
 
 ```
 clinical-annotation-tool/
+├─ docs/screenshots/           # README UI images
 ├─ src/
 │  ├─ App.tsx
 │  ├─ main.tsx
 │  ├─ lib/
 │  │   ├─ supabase.ts
-│  │   ├─ adminGate.ts           # Admin username/password + session
+│  │   ├─ adminGate.ts
 │  │   ├─ data.ts
 │  │   ├─ importDataset.ts
 │  │   ├─ guidelines.ts
-│  │   ├─ csv.ts / jsonl.ts
+│  │   ├─ ui.ts
+│  │   ├─ annotationStatus.ts
+│  │   └─ csv.ts / jsonl.ts
 │  └─ components/
 │      ├─ AnnotatorLogin.tsx
 │      ├─ AdminPasswordGate.tsx
 │      ├─ AdminPanel.tsx
-│      ├─ AnnotationsViewer.tsx
+│      ├─ AuthPageShell.tsx / AuthPageLayout.tsx / AuthPageAside.tsx
+│      ├─ AuthFormCard.tsx
+│      ├─ AppInteriorShell.tsx
+│      ├─ DashboardStatCards.tsx
 │      ├─ AnnotationPage.tsx
 │      ├─ AnnotationForm.tsx
 │      ├─ DatasetSelector.tsx
 │      ├─ Header.tsx
-│      ├─ ImageViewer.tsx
-│      ├─ PostPanel.tsx
-│      └─ ProgressBar.tsx
+│      ├─ SampleSearchBar.tsx
+│      └─ …
 ├─ public/
-│  └─ annotation_guidelines.pdf
+│  ├─ annotation_guidelines.pdf
+│  └─ uic-logo.png
+├─ scripts/
+│  ├─ prepare-dataset.mjs
+│  └─ upload-images-to-r2.sh
 ├─ supabase/
-│  ├─ schema.sql
-│  └─ migrations/add_summarization_reason.sql
-├─ scripts/prepare-dataset.mjs
-├─ Dataset/                      # prepared JSONL (example)
-├─ wrangler.jsonc
-├─ vite.config.ts
-└─ .env.example
+├─ Dataset/
+└─ wrangler.jsonc
 ```
 
 ---
@@ -419,7 +452,7 @@ Saves use **upsert** on `(sample_id, annotator_id)`.
 | Images broken after import | Import **prepared** JSONL with `https://` R2 URLs, not local paths. |
 | Admin login fails | Default `admin` / `admin123`; or set `VITE_ADMIN_*` in `.env` and restart dev / redeploy. |
 | Import: no valid rows | Check `post_id`, `question`, and `image_urls` / `image_paths`. |
-| `permission denied for table` | RLS was re-enabled — add policies or disable RLS (see `schema.sql`). |
+| `permission denied for table` | RLS was re-enabled - add policies or disable RLS (see `schema.sql`). |
 | Blank page on host | Env vars must be build-time; keep `base: "./"` in Vite config. |
 
 ---
@@ -430,4 +463,4 @@ Saves use **upsert** on `(sample_id, annotator_id)`.
 
 ## Acknowledgments
 
-Supabase, Cloudflare R2 + Workers, Vite, React, Tailwind CSS.
+**UIC Biomedical NLP Lab** · Supabase · Cloudflare R2 + Workers · Vite · React · Tailwind CSS
