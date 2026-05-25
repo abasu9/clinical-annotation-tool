@@ -30,7 +30,13 @@ Dashboard stats at the top (datasets, samples, your submitted / remaining), then
 
 ### Annotation workspace
 
-Image + post side by side, inline sample search, progress bar, and structured annotation form (see live app after opening a dataset).
+Progress bar and per-sample status, inline **Find sample** search, then image viewer (left) and original post (right). Multi-image samples use previous/next image controls with zoom.
+
+![Annotation workspace - image and post viewer](docs/screenshots/workspace-1.png)
+
+Summarization gate (Yes / No), optional **Reason**, and Task 1 / Task 2 fields with guideline help. Footer: **Previous**, **Save Draft**, **Submit & Next**, **Next**.
+
+![Annotation workspace - annotation form](docs/screenshots/workspace-2.png)
 
 ### Admin login
 
