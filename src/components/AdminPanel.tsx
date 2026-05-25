@@ -12,6 +12,7 @@ import { downloadFile, toCSV } from "../lib/csv";
 import { toJSONL } from "../lib/jsonl";
 import AnnotationsViewer from "./AnnotationsViewer";
 import { ANNOTATION_GUIDELINES_URL } from "../lib/guidelines";
+import { adminCard, btnPrimary, inputClass } from "../lib/ui";
 
 interface Props {
   onBack: () => void;
@@ -56,8 +57,16 @@ export default function AdminPanel({ onBack, backLabel = "Back" }: Props) {
   }, [load]);
 
   const handleImport = async () => {
-    if (!file || !name.trim()) {
-      setError("Please provide a dataset name and file.");
+    if (!name.trim() && !file) {
+      setError("Enter a dataset name and choose a .csv or .jsonl file.");
+      return;
+    }
+    if (!name.trim()) {
+      setError("Enter a dataset name (e.g. Clinical QA 100).");
+      return;
+    }
+    if (!file) {
+      setError("Choose a file — use Dataset/data_sample_100.prepared.jsonl or Browse to select it.");
       return;
     }
     setImporting(true);
@@ -123,25 +132,21 @@ export default function AdminPanel({ onBack, backLabel = "Back" }: Props) {
   };
 
   return (
-    <div className="max-w-5xl mx-auto p-6">
-      <div className="flex items-center justify-between mb-6 gap-3 flex-wrap">
-        <h2 className="text-2xl font-bold text-slate-800">Admin Panel</h2>
-        <div className="flex items-center gap-4">
-          <a
-            href={ANNOTATION_GUIDELINES_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-sm text-indigo-600 hover:text-indigo-800 font-medium"
-          >
-            Guidelines
-          </a>
-          <button
-            onClick={onBack}
-            className="text-sm text-indigo-600 hover:text-indigo-800 font-medium"
-          >
-            ← {backLabel}
-          </button>
+    <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
+      <div className="mb-8 flex items-start justify-between gap-4 flex-wrap">
+        <div>
+          <h2 className="text-2xl font-bold text-slate-900">Admin Panel</h2>
+          <p className="text-sm text-slate-500 mt-1">
+            Import datasets, export annotations, manage storage
+          </p>
         </div>
+        <button
+          type="button"
+          onClick={onBack}
+          className="rounded-xl px-4 py-2 text-sm font-medium text-indigo-700 ring-1 ring-indigo-200 bg-indigo-50 hover:bg-indigo-100 transition"
+        >
+          ← {backLabel}
+        </button>
       </div>
 
       {!isSupabaseConfigured && (
@@ -162,8 +167,8 @@ export default function AdminPanel({ onBack, backLabel = "Back" }: Props) {
         </div>
       )}
 
-      <div className="bg-white rounded-lg shadow p-5 mb-6 border border-slate-200">
-        <h3 className="text-lg font-semibold mb-3 text-slate-700">
+      <div className={`${adminCard} mb-6`}>
+        <h3 className="text-lg font-semibold mb-3 text-slate-800">
           Import dataset (.csv or .jsonl)
         </h3>
         <div className="flex flex-wrap gap-3 items-end">
@@ -174,22 +179,34 @@ export default function AdminPanel({ onBack, backLabel = "Back" }: Props) {
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="e.g. Clinical QA Batch 1"
-              className="w-full border border-slate-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"
+              className={inputClass}
             />
           </div>
           <div className="flex-1 min-w-[200px]">
             <label className="block text-sm text-slate-600 mb-1">File</label>
             <input
               type="file"
-              accept=".csv,.jsonl,.ndjson"
-              onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-              className="w-full text-sm"
+              accept=".csv,.jsonl,.ndjson,text/csv,application/json,text/plain"
+              onChange={(e) => {
+                setFile(e.target.files?.[0] ?? null);
+                setError("");
+              }}
+              className="w-full text-sm file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:bg-indigo-50 file:text-indigo-700"
             />
+            {file ? (
+              <p className="mt-1 text-xs text-emerald-700 font-medium">
+                Selected: {file.name} ({(file.size / 1024).toFixed(0)} KB)
+              </p>
+            ) : (
+              <p className="mt-1 text-xs text-slate-500">
+                Pick <code>Dataset/data_sample_100.prepared.jsonl</code> from the project folder.
+              </p>
+            )}
           </div>
           <button
             onClick={handleImport}
-            disabled={importing || !isSupabaseConfigured}
-            className="px-5 py-2 bg-indigo-600 text-white rounded text-sm font-medium hover:bg-indigo-700 disabled:opacity-50"
+            disabled={importing || !isSupabaseConfigured || !name.trim() || !file}
+            className={`${btnPrimary} disabled:opacity-50`}
           >
             {importing ? "Importing…" : "Import"}
           </button>
@@ -205,8 +222,8 @@ export default function AdminPanel({ onBack, backLabel = "Back" }: Props) {
         </p>
       </div>
 
-      <div className="bg-white rounded-lg shadow p-5 border border-slate-200">
-        <h3 className="text-lg font-semibold mb-3 text-slate-700">Datasets</h3>
+      <div className={adminCard}>
+        <h3 className="text-lg font-semibold mb-3 text-slate-800">Datasets</h3>
         {datasets.length === 0 ? (
           <p className="text-slate-500 text-sm">No datasets imported yet.</p>
         ) : (

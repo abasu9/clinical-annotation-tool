@@ -10,6 +10,7 @@ import DatasetSelector from "./components/DatasetSelector";
 import AnnotationPage from "./components/AnnotationPage";
 import AdminPasswordGate from "./components/AdminPasswordGate";
 import { isAdminUnlocked, lockAdmin } from "./lib/adminGate";
+import { appInteriorBg } from "./lib/ui";
 
 type View = "login" | "admin" | "selectDataset" | "annotate";
 
@@ -61,12 +62,21 @@ export default function App() {
         />
       );
     }
-    return <AdminPanel onBack={exitAdmin} backLabel="Logout" />;
+    return (
+      <div className={`${appInteriorBg} flex flex-col`}>
+        <Header
+          annotatorId={annotatorId}
+          onAdmin={() => {}}
+          onLogout={exitAdmin}
+        />
+        <AdminPanel onBack={exitAdmin} backLabel="Logout" />
+      </div>
+    );
   }
 
   if (view === "selectDataset") {
     return (
-      <div className="min-h-screen bg-slate-50">
+      <div className={`${appInteriorBg} flex flex-col`}>
         <Header
           annotatorId={annotatorId}
           onAdmin={() => setView("admin")}
@@ -83,11 +93,10 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col">
+    <div className={`${appInteriorBg} flex flex-col`}>
       <Header
         annotatorId={annotatorId}
         datasetName={dataset?.name}
-        totalSamples={dataset?.total_samples}
         onAdmin={() => setView("admin")}
         onLogout={handleLogout}
       />

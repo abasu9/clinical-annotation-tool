@@ -9,6 +9,8 @@ export default defineConfig({
   base: "./",
   plugins: [react(), cloudflare()],
   server: {
-    port: 3000,
+    port: 5173,
+    strictPort: false,
+    open: true,
   },
 });

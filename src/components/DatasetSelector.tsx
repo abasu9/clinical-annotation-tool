@@ -30,8 +30,9 @@ export default function DatasetSelector({ onSelect }: Props) {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-20 text-slate-500">
-        Loading datasets…
+      <div className="flex flex-col items-center justify-center py-24 gap-3">
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-indigo-200 border-t-indigo-600" />
+        <p className="text-slate-500 text-sm">Loading datasets…</p>
       </div>
     );
   }
@@ -39,7 +40,7 @@ export default function DatasetSelector({ onSelect }: Props) {
   if (error) {
     return (
       <div className="max-w-xl mx-auto p-6">
-        <div className="bg-red-50 border border-red-200 rounded p-4 text-red-700 text-sm">
+        <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-red-700 text-sm">
           {error}
         </div>
       </div>
@@ -48,9 +49,9 @@ export default function DatasetSelector({ onSelect }: Props) {
 
   if (datasets.length === 0) {
     return (
-      <div className="max-w-xl mx-auto p-6 text-center">
-        <p className="text-slate-600 mb-2">No datasets available.</p>
-        <p className="text-slate-400 text-sm">
+      <div className="max-w-xl mx-auto p-8 text-center rounded-2xl border border-dashed border-slate-300 bg-white/80">
+        <p className="text-slate-700 font-medium mb-1">No datasets available</p>
+        <p className="text-slate-500 text-sm">
           Ask your admin to import a dataset in the Admin Panel.
         </p>
       </div>
@@ -58,24 +59,46 @@ export default function DatasetSelector({ onSelect }: Props) {
   }
 
   return (
-    <div className="max-w-2xl mx-auto p-6">
-      <h2 className="text-xl font-bold text-slate-800 mb-4">Select dataset</h2>
+    <div className="max-w-2xl mx-auto px-4 sm:px-6 py-8 pb-16">
+      <div className="mb-8 rounded-2xl border border-indigo-200/70 bg-gradient-to-r from-indigo-600/90 via-indigo-500/85 to-teal-600/75 p-6 shadow-lg shadow-indigo-500/25 text-white">
+        <h2 className="text-2xl font-bold">Choose a dataset</h2>
+        <p className="text-indigo-100 text-sm mt-1">
+          Pick the collection you want to annotate today
+        </p>
+      </div>
       <div className="space-y-3">
-        {datasets.map((d) => (
+        {datasets.map((d, i) => (
           <button
             key={d.id}
             onClick={() => onSelect(d)}
-            className="w-full text-left bg-white rounded-lg shadow hover:shadow-md border border-slate-200 hover:border-indigo-300 p-4 transition"
+            className="group w-full text-left rounded-xl border border-indigo-200/60 bg-gradient-to-br from-white via-indigo-50/50 to-teal-50/40 p-5 shadow-md transition hover:border-indigo-400 hover:shadow-lg hover:shadow-indigo-400/20 focus:outline-none focus:ring-2 focus:ring-indigo-500/40"
           >
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="font-semibold text-slate-800">{d.name}</p>
-                <p className="text-sm text-slate-500">
-                  {d.total_samples} samples
-                  {d.uploaded_filename ? ` · ${d.uploaded_filename}` : ""}
+            <div className="flex items-center gap-4">
+              <div
+                className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-sm font-bold text-white shadow-sm ${
+                  i % 3 === 0
+                    ? "bg-gradient-to-br from-indigo-500 to-indigo-700"
+                    : i % 3 === 1
+                      ? "bg-gradient-to-br from-teal-500 to-teal-700"
+                      : "bg-gradient-to-br from-violet-500 to-violet-700"
+                }`}
+              >
+                {d.name.slice(0, 2).toUpperCase()}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-semibold text-slate-800 group-hover:text-indigo-700 transition">
+                  {d.name}
+                </p>
+                <p className="text-sm text-slate-500 mt-0.5">
+                  <span className="font-medium text-slate-600">{d.total_samples}</span> samples
+                  {d.uploaded_filename ? (
+                    <span className="text-slate-400"> · {d.uploaded_filename}</span>
+                  ) : null}
                 </p>
               </div>
-              <span className="text-indigo-600 text-sm font-medium">Open →</span>
+              <span className="shrink-0 rounded-lg bg-indigo-50 px-3 py-1.5 text-sm font-semibold text-indigo-700 group-hover:bg-indigo-600 group-hover:text-white transition">
+                Open
+              </span>
             </div>
           </button>
         ))}

@@ -102,32 +102,45 @@ const baseUrl = args.base ? String(args.base).replace(/\/+$/, "") : "";
 
 function toUrl(ref) {
   if (/^https?:\/\//i.test(ref)) return ref;
-  const filename = path.basename(ref);
-  return baseUrl ? `${baseUrl}/${filename}` : filename;
+  const filename = path.basename(String(ref).replace(/\\/g, "/"));
+  if (!baseUrl) return filename;
+  return `${baseUrl}/${filename}`.replace(/ /g, "%20");
+}
+
+function buildQuestion(obj) {
+  const q = String(obj.question ?? "").trim();
+  if (q) return q;
+  const title = String(obj.title ?? "").trim();
+  const selftext = String(obj.selftext ?? "").trim();
+  if (title && selftext) return `${title}\n\n${selftext}`;
+  return title || selftext;
 }
 
 function collectRawImageRefs(obj) {
   const refs = [];
-  for (const key of [
-    "image_urls",
-    "image_paths",
-    "image_path",
-    "local_paths",
-    "local_path",
-  ]) {
-    const v = obj?.[key];
-    if (v == null) continue;
+  const push = (v) => {
+    if (v == null) return;
     if (Array.isArray(v)) {
-      refs.push(...v.map((x) => String(x).trim()).filter(Boolean));
-    } else if (typeof v === "string") {
+      for (const x of v) {
+        if (x && typeof x === "object" && x.local_path) {
+          const lp = String(x.local_path).trim();
+          if (lp) refs.push(lp);
+        } else {
+          const s = String(x).trim();
+          if (s && !/^https?:\/\//i.test(s)) refs.push(s);
+        }
+      }
+      return;
+    }
+    if (typeof v === "string") {
       const s = v.trim();
-      if (!s) continue;
+      if (!s || /^https?:\/\//i.test(s)) return;
       if (s.startsWith("[")) {
         try {
           const arr = JSON.parse(s);
           if (Array.isArray(arr)) {
-            refs.push(...arr.map((x) => String(x).trim()).filter(Boolean));
-            continue;
+            push(arr);
+            return;
           }
         } catch {
           /* fall through */
@@ -135,7 +148,17 @@ function collectRawImageRefs(obj) {
       }
       refs.push(...s.split(";").map((p) => p.trim()).filter(Boolean));
     }
+  };
+  for (const key of [
+    "image_urls",
+    "image_paths",
+    "image_path",
+    "local_paths",
+    "local_path",
+  ]) {
+    push(obj?.[key]);
   }
+  push(obj?.downloaded_images);
   return refs;
 }
 
@@ -154,14 +177,15 @@ for (let i = 0; i < lines.length; i++) {
     continue;
   }
   const post_id = String(obj.post_id ?? "").trim();
-  const question = String(obj.question ?? "");
+  const question = buildQuestion(obj);
   if (!post_id || !question) {
-    if (!args.quiet) console.error(`Skipping line ${i + 1}: missing post_id or question`);
+    if (!args.quiet)
+      console.error(`Skipping line ${i + 1}: missing post_id or question/title/selftext`);
     continue;
   }
 
   const raw = collectRawImageRefs(obj);
-  const fromRow = raw.map((r) => path.basename(r));
+  const fromRow = raw.map((r) => path.basename(String(r).replace(/\\/g, "/")));
 
   const fromFolder = filesByPost.get(post_id) ?? [];
   const merged = Array.from(new Set([...fromRow, ...fromFolder]));
@@ -171,7 +195,7 @@ for (let i = 0; i < lines.length; i++) {
     console.error(`Note: ${post_id} has no images on row or folder.`);
   }
 
-  const image_urls = merged.map(toUrl);
+  const image_urls = merged.map(toUrl).filter((u) => /^https?:\/\//i.test(u));
 
   outLines.push(JSON.stringify({ post_id, question, image_urls }));
   written++;

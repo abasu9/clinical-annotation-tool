@@ -1,23 +1,33 @@
 import React, { useEffect, useState } from "react";
+import { panel, panelHeader, panelTitle, panelToolBtn } from "../lib/ui";
 
 interface Props {
   imageUrls: string[];
 }
 
+const IMAGE_ZOOM_HELP =
+  "Use + and − to zoom in or out. When zoomed in or out, scroll up, down, left, or right in the image area to see other parts of the image.";
+
 export default function ImageViewer({ imageUrls }: Props) {
   const [index, setIndex] = useState(0);
   const [zoom, setZoom] = useState(1);
   const [broken, setBroken] = useState<Set<number>>(new Set());
+  const [helpOpen, setHelpOpen] = useState(false);
 
   useEffect(() => {
     setIndex(0);
     setZoom(1);
     setBroken(new Set());
+    setHelpOpen(false);
   }, [imageUrls]);
+
+  useEffect(() => {
+    setHelpOpen(false);
+  }, [index]);
 
   if (!imageUrls || imageUrls.length === 0) {
     return (
-      <div className="bg-white rounded-lg shadow border border-slate-200 flex items-center justify-center h-full">
+      <div className={`${panel} items-center justify-center`}>
         <p className="text-slate-400 text-sm">No images for this sample</p>
       </div>
     );
@@ -33,39 +43,62 @@ export default function ImageViewer({ imageUrls }: Props) {
   };
 
   return (
-    <div className="bg-white rounded-lg shadow border border-slate-200 flex flex-col h-full">
-      <div className="px-4 py-3 border-b border-slate-200 bg-slate-50 rounded-t-lg flex items-center justify-between gap-2 flex-wrap">
-        <span className="text-sm font-semibold text-slate-700">
-          Image {index + 1} of {total}
-        </span>
+    <div className={panel}>
+      <div className={`${panelHeader} flex items-center justify-between gap-2 flex-wrap`}>
+        <div className="flex items-center gap-1.5 relative">
+          <span className={panelTitle}>
+            Image {index + 1} of {total}
+          </span>
+          <button
+            type="button"
+            onClick={() => setHelpOpen((open) => !open)}
+            aria-label="Image zoom and scroll help"
+            aria-expanded={helpOpen}
+            className="w-5 h-5 rounded-full border border-indigo-300 bg-white text-[11px] font-bold text-indigo-700 leading-none shadow-sm hover:bg-indigo-50 transition"
+            title="How to zoom and scroll"
+          >
+            i
+          </button>
+          {helpOpen && (
+            <div
+              role="tooltip"
+              className="absolute left-0 top-full mt-2 z-20 w-64 rounded-lg border border-indigo-200 bg-white px-3 py-2 text-xs text-slate-700 shadow-lg"
+            >
+              {IMAGE_ZOOM_HELP}
+            </div>
+          )}
+        </div>
         <div className="flex items-center gap-2">
           <button
+            type="button"
             onClick={() => setZoom((z) => Math.max(0.25, +(z - 0.25).toFixed(2)))}
-            className="px-2 py-1 text-xs border border-slate-300 rounded hover:bg-slate-100"
+            className={panelToolBtn}
             title="Zoom out"
           >
             −
           </button>
-          <span className="text-xs text-slate-500 w-12 text-center">
+          <span className="text-xs font-semibold text-slate-800 w-12 text-center tabular-nums">
             {Math.round(zoom * 100)}%
           </span>
           <button
+            type="button"
             onClick={() => setZoom((z) => Math.min(4, +(z + 0.25).toFixed(2)))}
-            className="px-2 py-1 text-xs border border-slate-300 rounded hover:bg-slate-100"
+            className={panelToolBtn}
             title="Zoom in"
           >
             +
           </button>
           <button
+            type="button"
             onClick={() => setZoom(1)}
-            className="px-2 py-1 text-xs border border-slate-300 rounded hover:bg-slate-100"
+            className={panelToolBtn}
           >
             Reset
           </button>
         </div>
       </div>
 
-      <div className="flex-1 overflow-auto flex items-center justify-center bg-slate-100 min-h-[200px]">
+      <div className="flex-1 overflow-auto flex items-center justify-center bg-slate-200/50 min-h-[200px]">
         {isBroken ? (
           <div className="text-center text-slate-400 p-8">
             <svg
@@ -106,18 +139,20 @@ export default function ImageViewer({ imageUrls }: Props) {
       </div>
 
       {total > 1 && (
-        <div className="px-4 py-2 border-t border-slate-200 flex items-center justify-center gap-3">
+        <div className="px-4 py-2 border-t border-indigo-200/50 bg-indigo-50/40 flex items-center justify-center gap-3">
           <button
+            type="button"
             onClick={() => change(Math.max(0, index - 1))}
             disabled={index === 0}
-            className="px-3 py-1 text-xs border border-slate-300 rounded hover:bg-slate-100 disabled:opacity-40"
+            className={`${panelToolBtn} px-3 py-1.5 disabled:opacity-40`}
           >
             ← Previous image
           </button>
           <button
+            type="button"
             onClick={() => change(Math.min(total - 1, index + 1))}
             disabled={index === total - 1}
-            className="px-3 py-1 text-xs border border-slate-300 rounded hover:bg-slate-100 disabled:opacity-40"
+            className={`${panelToolBtn} px-3 py-1.5 disabled:opacity-40`}
           >
             Next image →
           </button>

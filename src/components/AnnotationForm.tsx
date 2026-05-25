@@ -10,6 +10,7 @@ import {
   Task2GuidelineContent,
 } from "./TaskGuidelineModal";
 import { countWords, MIN_TASK_WORDS, meetsMinWordCount } from "../lib/wordCount";
+import { panel, panelHeader, panelTitle, inputClass } from "../lib/ui";
 
 const SUMMARIZATION_SET = new Set<string>(REQUIRES_SUMMARIZATION_OPTIONS);
 const REASON_SET = new Set<string>(SUMMARIZATION_REASON_OPTIONS);
@@ -57,11 +58,11 @@ export default function AnnotationForm({ value, onChange, errors }: Props) {
   const task2Ok = meetsMinWordCount(local.finalMultimodalClinicalSummary);
 
   return (
-    <div className="bg-white rounded-lg shadow border border-slate-200 flex flex-col h-full">
-      <div className="px-4 py-3 border-b border-slate-200 bg-slate-50 rounded-t-lg">
-        <h3 className="text-sm font-semibold text-slate-700">Annotation</h3>
+    <div className={panel}>
+      <div className={panelHeader}>
+        <h3 className={panelTitle}>Annotation</h3>
       </div>
-      <div className="flex-1 overflow-y-auto p-4 space-y-5">
+      <div className="flex-1 overflow-y-auto p-4 space-y-5 bg-indigo-50/20">
         {errors.length > 0 && (
           <div className="bg-red-50 border border-red-200 rounded p-3">
             {errors.map((e, i) => (
@@ -85,7 +86,7 @@ export default function AnnotationForm({ value, onChange, errors }: Props) {
               if (val === "Yes") patch.summarizationReason = "";
               update(patch);
             }}
-            className="w-full border border-slate-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"
+            className={inputClass}
           >
             <option value="">— Select —</option>
             {local.imageStatus && !SUMMARIZATION_SET.has(local.imageStatus) && (
@@ -125,7 +126,7 @@ export default function AnnotationForm({ value, onChange, errors }: Props) {
                   update({ summarizationReason: e.target.value })
                 }
                 disabled={local.imageStatus !== "No"}
-                className="w-full border border-slate-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300 disabled:bg-slate-100 disabled:text-slate-400"
+                className={`${inputClass} disabled:bg-slate-100 disabled:text-slate-400`}
               >
                 <option value="">
                   {local.imageStatus === "No"
@@ -169,7 +170,7 @@ export default function AnnotationForm({ value, onChange, errors }: Props) {
             onChange={(e) => update({ objectiveImageDescription: e.target.value })}
             rows={6}
             disabled={local.imageStatus === "No"}
-            className="w-full border border-slate-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300 resize-y disabled:bg-slate-100 disabled:text-slate-400"
+            className={`${inputClass} resize-y disabled:bg-slate-100 disabled:text-slate-400`}
             placeholder={
               local.imageStatus === "No"
                 ? "Not required when summarization is No"
@@ -206,7 +207,7 @@ export default function AnnotationForm({ value, onChange, errors }: Props) {
             }
             rows={6}
             disabled={local.imageStatus === "No"}
-            className="w-full border border-slate-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300 resize-y disabled:bg-slate-100 disabled:text-slate-400"
+            className={`${inputClass} resize-y disabled:bg-slate-100 disabled:text-slate-400`}
             placeholder={
               local.imageStatus === "No"
                 ? "Not required when summarization is No"

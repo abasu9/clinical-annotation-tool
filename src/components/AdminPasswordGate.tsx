@@ -3,6 +3,8 @@ import {
   isAdminCredentialsConfigured,
   unlockAdmin,
 } from "../lib/adminGate";
+import { LAB_NAME } from "../lib/guidelines";
+import { btnPrimary, inputClass } from "../lib/ui";
 
 interface Props {
   onUnlocked: () => void;
@@ -16,21 +18,23 @@ export default function AdminPasswordGate({ onUnlocked, onCancel }: Props) {
 
   if (!isAdminCredentialsConfigured()) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50 px-4">
-        <div className="bg-white rounded-xl shadow-lg p-8 w-full max-w-md text-center">
-          <h1 className="text-xl font-bold text-slate-800 mb-2">Admin not configured</h1>
-          <p className="text-sm text-slate-600 mb-6">
-            Set <code className="text-xs bg-slate-100 px-1 rounded">VITE_ADMIN_USERNAME</code> and{" "}
-            <code className="text-xs bg-slate-100 px-1 rounded">VITE_ADMIN_PASSWORD</code> in{" "}
-            <code className="text-xs bg-slate-100 px-1 rounded">.env</code>, then restart the dev server.
-          </p>
-          <button
-            type="button"
-            onClick={onCancel}
-            className="text-sm text-indigo-600 hover:text-indigo-800 font-medium"
-          >
-            ← Back
-          </button>
+      <div className="min-h-screen flex items-center justify-center bg-slate-950 px-4">
+        <div className="rounded-2xl border border-white/10 bg-white/[0.07] p-1 shadow-2xl max-w-md w-full">
+          <div className="rounded-[14px] bg-white p-8 text-center">
+            <h1 className="text-xl font-bold text-slate-800 mb-2">Admin not configured</h1>
+            <p className="text-sm text-slate-600 mb-6">
+              Set <code className="text-xs bg-slate-100 px-1 rounded">VITE_ADMIN_USERNAME</code> and{" "}
+              <code className="text-xs bg-slate-100 px-1 rounded">VITE_ADMIN_PASSWORD</code> in{" "}
+              <code className="text-xs bg-slate-100 px-1 rounded">.env</code>, then restart the dev server.
+            </p>
+            <button
+              type="button"
+              onClick={onCancel}
+              className="text-sm text-indigo-600 hover:text-indigo-800 font-medium"
+            >
+              ← Back
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -48,60 +52,62 @@ export default function AdminPasswordGate({ onUnlocked, onCancel }: Props) {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-50 px-4">
-      <div className="bg-white rounded-xl shadow-lg p-8 w-full max-w-md">
-        <h1 className="text-2xl font-bold text-slate-800 mb-1 text-center">Admin sign in</h1>
-        <p className="text-slate-500 text-sm text-center mb-6">
-          Username and password required for import and export
-        </p>
-        {error && (
-          <div className="mb-3 p-3 rounded bg-red-50 border border-red-200 text-red-700 text-sm">
-            {error}
+    <div className="min-h-screen flex items-center justify-center bg-slate-950 px-4">
+      <div className="w-full max-w-md">
+        <p className="text-center text-xs text-teal-200/80 mb-4">{LAB_NAME}</p>
+        <div className="rounded-2xl border border-white/10 bg-white/[0.07] p-1 shadow-2xl">
+          <div className="rounded-[14px] bg-white p-8">
+            <h1 className="text-2xl font-bold text-slate-800 mb-6 text-center">Admin signin</h1>
+            {error && (
+              <div className="mb-3 p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm">
+                {error}
+              </div>
+            )}
+            <form onSubmit={submit} className="space-y-3">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  Username
+                </label>
+                <input
+                  type="text"
+                  autoComplete="username"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  className={inputClass}
+                  autoFocus
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  Password
+                </label>
+                <input
+                  type="password"
+                  autoComplete="current-password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className={inputClass}
+                  required
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={!username.trim() || !password}
+                className={`w-full ${btnPrimary}`}
+              >
+                Sign in
+              </button>
+            </form>
+            <button
+              type="button"
+              onClick={onCancel}
+              className="w-full mt-3 text-sm text-slate-600 hover:text-slate-800 font-medium"
+            >
+              ← Back
+            </button>
           </div>
-        )}
-        <form onSubmit={submit} className="space-y-3">
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">
-              Username
-            </label>
-            <input
-              type="text"
-              autoComplete="username"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              className="w-full border border-slate-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
-              autoFocus
-              required
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">
-              Password
-            </label>
-            <input
-              type="password"
-              autoComplete="current-password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full border border-slate-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
-              required
-            />
-          </div>
-          <button
-            type="submit"
-            disabled={!username.trim() || !password}
-            className="w-full bg-indigo-600 text-white rounded-lg py-2.5 text-sm font-semibold hover:bg-indigo-700 disabled:opacity-40 transition"
-          >
-            Sign in
-          </button>
-        </form>
-        <button
-          type="button"
-          onClick={onCancel}
-          className="w-full mt-3 text-sm text-slate-600 hover:text-slate-800 font-medium"
-        >
-          ← Back
-        </button>
+        </div>
       </div>
     </div>
   );

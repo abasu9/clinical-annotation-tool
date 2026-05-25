@@ -1,6 +1,7 @@
 import { supabase } from "./supabase";
 import { parseCSV } from "./csv";
 import { parseJSONL } from "./jsonl";
+import { buildQuestion, collectImageRefs } from "./datasetFields";
 
 export interface ParsedSample {
   post_id: string;
@@ -41,16 +42,20 @@ export function extractSample(row: Record<string, unknown>): ParsedSample | null
     norm[k.trim().toLowerCase()] = v;
   }
   const post_id = String(norm.post_id ?? "").trim();
-  const question = String(norm.question ?? "").trim();
+  const question = buildQuestion(norm);
   if (!post_id || !question) return null;
-  const rawImages =
-    norm.image_urls ??
-    norm.image_paths ??
-    norm.image_path ??
-    norm.local_paths ??
-    norm.local_path ??
-    "";
-  const image_urls = normalizeImageUrls(rawImages);
+  const localRefs = collectImageRefs(norm);
+  const image_urls =
+    localRefs.length > 0
+      ? localRefs
+      : normalizeImageUrls(
+          norm.image_urls ??
+            norm.image_paths ??
+            norm.image_path ??
+            norm.local_paths ??
+            norm.local_path ??
+            ""
+        );
   return { post_id, question, image_urls };
 }
 
@@ -98,7 +103,7 @@ export async function importDatasetFile(opts: {
   const samples = await parseDatasetFile(file);
   if (samples.length === 0) {
     throw new Error(
-      "No valid rows found. Required columns: post_id, question, image_urls or image_paths."
+      "No valid rows found. Required: post_id and question (or title/selftext), plus image_urls or local paths."
     );
   }
 

@@ -17,6 +17,11 @@ import PostPanel from "./PostPanel";
 import ImageViewer from "./ImageViewer";
 import AnnotationForm, { FormData } from "./AnnotationForm";
 import ProgressBar from "./ProgressBar";
+import SampleSearchBar, {
+  previewQuestion,
+  type SampleSearchHit,
+} from "./SampleSearchBar";
+import { contentCanvas, interiorStrip } from "../lib/ui";
 import {
   countWords,
   MIN_TASK_WORDS,
@@ -83,6 +88,8 @@ export default function AnnotationPage({
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState("");
   const [loadError, setLoadError] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchHits, setSearchHits] = useState<SampleSearchHit[]>([]);
   const dirtyRef = useRef(false);
 
   const showToast = useCallback((msg: string) => {
@@ -331,6 +338,63 @@ export default function AnnotationPage({
   const handlePrev = () => moveTo(index - 1);
   const handleNext = () => moveTo(index + 1);
 
+  const findMatchingIndices = useCallback(
+    (query: string): number[] => {
+      const q = query.trim().toLowerCase();
+      if (!q) return [];
+      const indices: number[] = [];
+      for (let i = 0; i < samples.length; i++) {
+        const s = samples[i];
+        if (
+          s.post_id.toLowerCase().includes(q) ||
+          s.question.toLowerCase().includes(q)
+        ) {
+          indices.push(i);
+        }
+      }
+      return indices;
+    },
+    [samples]
+  );
+
+  const handleSearch = useCallback(() => {
+    const matches = findMatchingIndices(searchQuery);
+    if (matches.length === 0) {
+      setSearchHits([]);
+      showToast(`No sample found for "${searchQuery.trim()}"`);
+      return;
+    }
+    const max = 50;
+    const hits: SampleSearchHit[] = matches.slice(0, max).map((i) => {
+      const s = samples[i];
+      const ann = annByMap[s.id];
+      const statusLabel = ann?.status ?? "unstarted";
+      return {
+        index: i,
+        post_id: s.post_id,
+        questionPreview: previewQuestion(s.question),
+        statusLabel,
+      };
+    });
+    setSearchHits(hits);
+    if (matches.length > max) {
+      showToast(`Showing first ${max} of ${matches.length} matches.`);
+    }
+  }, [findMatchingIndices, searchQuery, samples, annByMap, showToast]);
+
+  const handleSelectSearchHit = useCallback(
+    (targetIndex: number) => {
+      setSearchHits([]);
+      moveTo(targetIndex);
+    },
+    [moveTo]
+  );
+
+  const handleSearchQueryChange = useCallback((value: string) => {
+    setSearchQuery(value);
+    setSearchHits([]);
+  }, []);
+
   const annStatus = currentAnn?.status ?? "unstarted";
 
   if (loading) {
@@ -373,16 +437,31 @@ export default function AnnotationPage({
 
   return (
     <div className="flex-1 flex flex-col">
+      <SampleSearchBar
+        value={searchQuery}
+        onChange={handleSearchQueryChange}
+        onSearch={handleSearch}
+        hits={searchHits}
+        onSelectHit={handleSelectSearchHit}
+        onCloseResults={() => setSearchHits([])}
+        disabled={busy}
+      />
       <ProgressBar progress={progress} />
-      <div className="bg-white border-b border-slate-200 px-6 py-2 flex items-center justify-between text-xs text-slate-600">
-        <span>
-          Sample {index + 1} of {samples.length} ·{" "}
-          <span className="font-mono">{current?.post_id}</span> ·{" "}
-          <span className="uppercase font-semibold">{annStatus}</span>
+      <div className={`${interiorStrip} px-4 sm:px-6 py-2.5 flex flex-wrap items-center justify-between gap-2 text-xs sm:text-sm`}>
+        <span className="text-slate-800">
+          Sample{" "}
+          <span className="font-bold text-slate-900">
+            {index + 1} / {samples.length}
+          </span>
+          <span className="mx-2 text-indigo-300">·</span>
+          <span className="font-mono font-semibold text-indigo-800">{current?.post_id}</span>
+          <span className="mx-2 text-indigo-300">·</span>
+          <span className="uppercase font-bold text-slate-900">{annStatus}</span>
         </span>
         <button
+          type="button"
           onClick={onBackToDatasets}
-          className="text-indigo-600 hover:underline"
+          className="rounded-lg px-3 py-1.5 text-indigo-900 font-semibold ring-1 ring-indigo-300 bg-white hover:bg-indigo-50 transition shadow-sm"
         >
           Change dataset
         </button>
@@ -394,8 +473,8 @@ export default function AnnotationPage({
         </div>
       )}
 
-      <div className="flex-1 overflow-auto">
-        <div className="flex flex-col gap-4 p-4 max-w-[1800px] mx-auto">
+      <div className={`flex-1 overflow-auto ${contentCanvas}`}>
+        <div className="flex flex-col gap-4 p-4 sm:p-6 max-w-[1800px] mx-auto">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 min-h-[280px] lg:min-h-[min(40vh,420px)]">
             <div className="min-h-[320px] lg:min-h-0 h-full">
               <ImageViewer imageUrls={current?.image_urls ?? []} />
@@ -413,41 +492,46 @@ export default function AnnotationPage({
         </div>
       </div>
 
-      <div className="bg-white border-t border-slate-200 px-6 py-3">
-        <div className="flex items-center justify-between max-w-7xl mx-auto">
+      <div className="border-t border-indigo-300/40 bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 px-4 sm:px-6 py-3 shadow-[0_-8px_32px_rgba(49,46,129,0.25)]">
+        <div className="flex items-center justify-between max-w-[1800px] mx-auto gap-3 flex-wrap">
           <button
+            type="button"
             onClick={handlePrev}
             disabled={index === 0 || busy}
-            className="px-5 py-2 border border-slate-300 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-100 disabled:opacity-40 transition"
+            className="px-4 py-2.5 border border-white/20 rounded-xl text-sm font-medium text-slate-200 bg-white/10 hover:bg-white/20 disabled:opacity-40 transition"
           >
             ← Previous
           </button>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3 flex-wrap justify-center">
             <button
+              type="button"
               onClick={handleSaveDraft}
               disabled={busy}
-              className="px-5 py-2 border border-amber-400 bg-amber-50 rounded-lg text-sm font-medium text-amber-800 hover:bg-amber-100 disabled:opacity-40 transition"
+              className="px-4 py-2.5 border border-amber-400/50 bg-amber-500/20 rounded-xl text-sm font-medium text-amber-100 hover:bg-amber-500/30 disabled:opacity-40 transition"
             >
               Save Draft
             </button>
             <button
+              type="button"
               onClick={handleSkip}
               disabled={busy}
-              className="px-5 py-2 border border-orange-300 bg-orange-50 rounded-lg text-sm font-medium text-orange-800 hover:bg-orange-100 disabled:opacity-40 transition"
+              className="px-4 py-2.5 border border-orange-400/50 bg-orange-500/20 rounded-xl text-sm font-medium text-orange-100 hover:bg-orange-500/30 disabled:opacity-40 transition"
             >
               Skip
             </button>
             <button
+              type="button"
               onClick={handleSubmit}
               disabled={busy}
-              className="px-5 py-2 bg-indigo-600 text-white rounded-lg text-sm font-semibold hover:bg-indigo-700 disabled:opacity-50 transition"
+              className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-teal-500 to-indigo-500 text-sm font-semibold text-white shadow-lg shadow-indigo-500/40 hover:from-teal-400 hover:to-indigo-400 disabled:opacity-50 transition"
             >
               Submit &amp; Next
             </button>
             <button
+              type="button"
               onClick={handleNext}
               disabled={index >= samples.length - 1 || busy}
-              className="px-3 py-2 border border-slate-300 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-100 disabled:opacity-40 transition"
+              className="px-4 py-2.5 border border-white/20 rounded-xl text-sm font-medium text-slate-200 bg-white/10 hover:bg-white/20 disabled:opacity-40 transition"
               title="Skip to next sample without saving"
             >
               Next →

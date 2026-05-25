@@ -1,4 +1,4 @@
-# Clinical Multimodal Annotation Tool
+# Clinical Annotation Tool
 
 A lean, **serverless** web app for expert annotation of multimodal clinical
 posts (text + images). Designed for small expert teams who need a clean
@@ -98,7 +98,7 @@ git clone https://github.com/abasu9/clinical-annotation-tool.git
 cd clinical-annotation-tool
 npm install
 cp .env.example .env    # add Supabase URL + anon key (admin creds optional)
-npm run dev             # http://localhost:3000
+npm run dev             # http://localhost:5173 (opens in browser)
 ```
 
 | Command            | Purpose                                |
@@ -129,11 +129,73 @@ If your project predates `summarization_reason`, also run
 
 ### 3. Cloudflare R2 (images)
 
-1. **R2 → Create bucket** (e.g. `clinical-annotation-images`).
-2. Enable a **public dev URL** (`pub-*.r2.dev`) or attach a custom domain.
-3. Upload images (dashboard, `rclone`, `wrangler`, or AWS CLI against the R2 endpoint).
+1. **R2 → Create bucket** (e.g. `clinical-annotation-tool`).
+2. **Settings → Public Development URL** — enable it (e.g. `https://pub-xxxxx.r2.dev`). The app loads images in `<img>` tags from this HTTPS URL, not from the S3 API endpoint.
+3. Upload image files (see below). The annotation app **does not** upload images — only stores URLs in the JSONL.
 
-The app does **not** upload images — only stores HTTPS URLs in the dataset file.
+Your prepared dataset expects keys like:
+
+`Multimodal images/<post_id>_0.jpg` → public URL  
+`https://pub-xxxxx.r2.dev/Multimodal%20images/<post_id>_0.jpg`
+
+#### Upload all images with S3 API compatibility (recommended)
+
+R2 speaks the **S3 API**. Use the **AWS CLI** pointed at R2’s endpoint (not Amazon S3).
+
+**A. Create an R2 API token**
+
+1. Cloudflare dashboard → **R2** → **Manage R2 API Tokens** → **Create API token**.
+2. Permission: **Object Read & Write** on your bucket.
+3. Save **Access Key ID** and **Secret Access Key** (shown once).
+4. Note your **Account ID** on the R2 overview page.
+
+**B. Install AWS CLI** (if needed)
+
+```bash
+brew install awscli
+aws --version
+```
+
+**C. Upload the local folder** (231 files in `images_sample_100/`)
+
+Replace paths and IDs with yours:
+
+```bash
+export R2_ACCOUNT_ID="YOUR_ACCOUNT_ID"
+export R2_ACCESS_KEY_ID="YOUR_ACCESS_KEY"
+export R2_SECRET_ACCESS_KEY="YOUR_SECRET_KEY"
+export R2_BUCKET="clinical-annotation-tool"
+export R2_PREFIX="Multimodal images"
+export LOCAL_DIR="/Users/you/Documents/JOB/100 sample/images_sample_100"
+
+chmod +x scripts/upload-images-to-r2.sh
+./scripts/upload-images-to-r2.sh
+```
+
+Equivalent one-liner:
+
+```bash
+aws s3 cp "$LOCAL_DIR" "s3://${R2_BUCKET}/${R2_PREFIX}/" \
+  --recursive \
+  --endpoint-url "https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com"
+```
+
+Use region **`auto`** (or leave default / `us-east-1` — both work with R2).
+
+**D. Verify**
+
+Open one URL in the browser (must match your public dev URL and prefix):
+
+`https://pub-62e154ba51f54302ab158d5689135563.r2.dev/Multimodal%20images/1r5q0z8_0.jpg`
+
+If it loads, import `Dataset/data_sample_100.prepared.jsonl` in Admin.
+
+**Notes**
+
+- S3 endpoint: `https://<ACCOUNT_ID>.r2.cloudflarestorage.com` — for **upload tools only**.
+- Public browser URL: `https://pub-….r2.dev/…` — for the **annotation app**.
+- Dashboard upload works for small batches; use the CLI for all ~231 files.
+- Prefix folder name must match what you used in `prepare-dataset.mjs` / prepared JSONL (`Multimodal images` vs `images_sample_100`).
 
 ### 4. Dataset file format
 
@@ -177,6 +239,18 @@ node scripts/prepare-dataset.mjs \
 Import the **prepared** JSONL in Admin — not the raw file with local paths.
 
 Reference file in repo: `Dataset/data_sample_100.prepared.jsonl` (100 rows, one image per post).
+
+**Full dataset (`arctic_data.jsonl`, 540 posts):**
+
+```bash
+node scripts/prepare-dataset.mjs \
+  --input  "/Users/you/Documents/JOB/MultimodalQsumm/arctic_data.jsonl" \
+  --images "/Users/you/Documents/JOB/MultimodalQsumm/images" \
+  --base   "https://pub-xxxx.r2.dev/Multimodal images" \
+  --output "Dataset/arctic_data.prepared.jsonl"
+```
+
+Uses `title` + `selftext` as `question` and R2 URLs under `Multimodal images/` (must match your upload prefix). Import `Dataset/arctic_data.prepared.jsonl` in Admin.
 
 ### 6. Environment variables
 
