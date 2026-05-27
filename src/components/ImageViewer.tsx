@@ -14,18 +14,26 @@ function ZoomControls({
   onZoomOut,
   onZoomIn,
   onReset,
+  onDarkBackground = false,
 }: {
   zoom: number;
   onZoomOut: () => void;
   onZoomIn: () => void;
   onReset: () => void;
+  onDarkBackground?: boolean;
 }) {
   return (
     <div className="flex items-center gap-2">
       <button type="button" onClick={onZoomOut} className={panelToolBtn} title="Zoom out">
         −
       </button>
-      <span className="text-xs font-semibold text-slate-800 w-12 text-center tabular-nums">
+      <span
+        className={`text-xs font-semibold w-12 text-center tabular-nums ${
+          onDarkBackground
+            ? "text-white bg-white/15 rounded-md py-0.5 ring-1 ring-white/25"
+            : "text-slate-800"
+        }`}
+      >
         {Math.round(zoom * 100)}%
       </span>
       <button type="button" onClick={onZoomIn} className={panelToolBtn} title="Zoom in">
@@ -215,7 +223,13 @@ export default function ImageViewer({ imageUrls }: Props) {
                 Image {index + 1} of {total}
               </span>
               <div className="flex items-center gap-2 flex-wrap justify-end">
-                <ZoomControls zoom={zoom} onZoomOut={zoomOut} onZoomIn={zoomIn} onReset={zoomReset} />
+                <ZoomControls
+                  zoom={zoom}
+                  onZoomOut={zoomOut}
+                  onZoomIn={zoomIn}
+                  onReset={zoomReset}
+                  onDarkBackground
+                />
                 {total > 1 && (
                   <>
                     <button
