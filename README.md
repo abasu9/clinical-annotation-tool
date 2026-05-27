@@ -80,8 +80,8 @@ Summary cards, Cloudflare R2 guidance, structured import form, and datasets tabl
 
 **Default admin credentials** (override with env vars before production):
 
-- Username: `admin`
-- Password: `admin123`
+- Username: `nlp`
+- Password: `nlp123`
 
 Admin unlock lasts about **8 hours** per browser tab (`sessionStorage`). Use **Logout** in the admin panel to lock again immediately.
 
@@ -299,9 +299,9 @@ cp .env.example .env
 VITE_SUPABASE_URL=https://YOUR-PROJECT.supabase.co
 VITE_SUPABASE_ANON_KEY=YOUR_PUBLIC_ANON_KEY
 
-# Optional - defaults to admin / admin123 if omitted
-VITE_ADMIN_USERNAME=admin
-VITE_ADMIN_PASSWORD=admin123
+# Optional - defaults to nlp / nlp123 if omitted
+VITE_ADMIN_USERNAME=nlp
+VITE_ADMIN_PASSWORD=nlp123
 ```
 
 Restart `npm run dev` after changing `.env`.
@@ -456,7 +456,7 @@ Saves use **upsert** on `(sample_id, annotator_id)`.
 | --- | --- |
 | Supabase not configured banner | Set `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` at **build** time; redeploy. |
 | Images broken after import | Import **prepared** JSONL with `https://` R2 URLs, not local paths. |
-| Admin login fails | Default `admin` / `admin123`; or set `VITE_ADMIN_*` in `.env` and restart dev / redeploy. |
+| Admin login fails | Default `nlp` / `nlp123`; or set `VITE_ADMIN_*` in `.env` and restart dev / redeploy. |
 | Import: no valid rows | Check `post_id`, `question`, and `image_urls` / `image_paths`. |
 | `permission denied for table` | RLS was re-enabled - add policies or disable RLS (see `schema.sql`). |
 | Blank page on host | Env vars must be build-time; keep `base: "./"` in Vite config. |

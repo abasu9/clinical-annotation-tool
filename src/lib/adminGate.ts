@@ -1,8 +1,8 @@
 const STORAGE_KEY = "admin_unlocked_until";
 const SESSION_MS = 8 * 60 * 60 * 1000;
 
-const DEFAULT_USERNAME = "admin";
-const DEFAULT_PASSWORD = "admin123";
+const DEFAULT_USERNAME = "nlp";
+const DEFAULT_PASSWORD = "nlp123";
 
 function expectedUsername(): string {
   const u = import.meta.env.VITE_ADMIN_USERNAME as string | undefined;
