@@ -2,9 +2,6 @@ import React from "react";
 import AnnotationStatusPill from "./AnnotationStatusPill";
 import {
   ANNOTATION_GUIDELINES_URL,
-  LAB_NAME,
-  ADVISOR_NAME,
-  ADVISOR_PROFILE_URL,
   UIC_LOGO_SRC,
   UNIVERSITY_NAME,
 } from "../lib/guidelines";
@@ -45,21 +42,7 @@ export default function Header({
           />
           <div className="min-w-0">
             <p className="truncate text-sm font-semibold leading-tight text-teal-200/95">
-              {LAB_NAME}
-            </p>
-            <p className="mt-0.5 truncate text-xs leading-snug text-slate-400">
               {UNIVERSITY_NAME}
-            </p>
-            <p className="mt-0.5 hidden text-[11px] text-slate-500 lg:block">
-              Advisor:{" "}
-              <a
-                href={ADVISOR_PROFILE_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-indigo-300/90 hover:text-white hover:underline"
-              >
-                {ADVISOR_NAME}
-              </a>
             </p>
           </div>
         </div>

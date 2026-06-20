@@ -1,11 +1,5 @@
 import React from "react";
-import {
-  ADVISOR_NAME,
-  ADVISOR_PROFILE_URL,
-  LAB_NAME,
-  UIC_LOGO_SRC,
-  UNIVERSITY_NAME,
-} from "../lib/guidelines";
+import { UIC_LOGO_SRC, UNIVERSITY_NAME } from "../lib/guidelines";
 import { authGradientTextClass } from "../lib/ui";
 
 export default function AuthPageAside() {
@@ -34,17 +28,6 @@ export default function AuthPageAside() {
         </span>
         <span className="text-teal-200/90">Trackable</span>
       </p>
-      <p className="mt-6 text-sm text-slate-400">
-        Advisor:{" "}
-        <a
-          href={ADVISOR_PROFILE_URL}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="font-medium text-teal-200 hover:text-teal-100 underline underline-offset-2"
-        >
-          {ADVISOR_NAME}
-        </a>
-      </p>
 
       <div className="mt-10 flex items-center gap-3.5 border-t border-white/10 pt-6">
         <img
@@ -55,8 +38,7 @@ export default function AuthPageAside() {
           height={64}
         />
         <div className="min-w-0">
-          <p className="text-lg font-semibold leading-tight text-teal-200/95">{LAB_NAME}</p>
-          <p className="mt-1 text-sm leading-snug text-slate-500">{UNIVERSITY_NAME}</p>
+          <p className="text-lg font-semibold leading-tight text-teal-200/95">{UNIVERSITY_NAME}</p>
         </div>
       </div>
     </aside>

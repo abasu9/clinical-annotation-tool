@@ -1,7 +1,7 @@
 # Clinical Annotation Tool
 
 A lean, **serverless** web app for expert annotation of multimodal clinical
-posts (text + images). Built for the **UIC Biomedical NLP Lab** - structured
+posts (text + images). Built for structured
 outputs, a clear annotator workflow, and no backend server to operate.
 
 Each sample can produce two annotation outputs (when summarization is required):
@@ -55,7 +55,7 @@ Summary cards, Cloudflare R2 guidance, structured import form, and datasets tabl
 ## Highlights
 
 - **Single-page React app** - Supabase + R2 from the browser; static hosting on Cloudflare Workers.
-- **Polished auth UI** - shared login layout, gradient primary actions, UIC branding.
+- **Polished auth UI** - shared login layout, gradient primary actions, university branding.
 - **Dashboard stats** - summary cards on the dataset picker (per annotator) and admin panel (global).
 - **Two roles:**
   - **Annotators** - enter an **annotator ID** (stored in `localStorage`).
@@ -469,4 +469,4 @@ Saves use **upsert** on `(sample_id, annotator_id)`.
 
 ## Acknowledgments
 
-**UIC Biomedical NLP Lab** · Supabase · Cloudflare R2 + Workers · Vite · React · Tailwind CSS
+**University of Illinois Chicago** · Supabase · Cloudflare R2 + Workers · Vite · React · Tailwind CSS
