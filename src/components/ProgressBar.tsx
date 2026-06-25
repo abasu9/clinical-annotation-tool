@@ -7,7 +7,7 @@ interface Props {
 
 export default function ProgressBar({ progress }: Props) {
   if (!progress || progress.total_samples === 0) return null;
-  const { total_samples, submitted, draft, skipped, remaining } = progress;
+  const { total_samples, submitted, draft, skipped, out_of_expertise, remaining } = progress;
   const pct = (n: number) => `${(Math.min(1, n / total_samples) * 100).toFixed(0)}%`;
   return (
     <div className="border-b border-indigo-200 bg-indigo-100 px-4 sm:px-6 py-2.5">
@@ -27,6 +27,10 @@ export default function ProgressBar({ progress }: Props) {
               className="bg-orange-400 h-full transition-all"
               style={{ width: pct(skipped) }}
             />
+            <div
+              className="bg-violet-500 h-full transition-all"
+              style={{ width: pct(out_of_expertise) }}
+            />
           </div>
         </div>
         <div className="flex gap-3 flex-wrap">
@@ -41,6 +45,10 @@ export default function ProgressBar({ progress }: Props) {
           <span className="flex items-center gap-1.5 rounded-md bg-white px-2 py-0.5 font-medium text-slate-800 ring-1 ring-indigo-200 shadow-sm">
             <span className="w-2 h-2 rounded-full bg-orange-500" />
             Skipped {skipped}
+          </span>
+          <span className="flex items-center gap-1.5 rounded-md bg-white px-2 py-0.5 font-medium text-slate-800 ring-1 ring-indigo-200 shadow-sm">
+            <span className="w-2 h-2 rounded-full bg-violet-600" />
+            Out of expertise {out_of_expertise}
           </span>
           <span className="rounded-md bg-indigo-700 px-2 py-0.5 font-semibold text-white shadow-sm">
             Remaining {remaining}

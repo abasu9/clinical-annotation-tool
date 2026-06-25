@@ -9,6 +9,8 @@ export function annotationStatusLabel(status: string): string {
       return "Submitted";
     case "skipped":
       return "Skipped";
+    case "out_of_expertise":
+      return "Not within expertise";
     default:
       return status;
   }
@@ -19,6 +21,7 @@ const PILL_LIGHT: Record<string, string> = {
   draft: "bg-amber-50 text-amber-800 ring-1 ring-amber-200/80",
   submitted: "bg-emerald-50 text-emerald-800 ring-1 ring-emerald-200/80",
   skipped: "bg-orange-50 text-orange-800 ring-1 ring-orange-200/80",
+  out_of_expertise: "bg-violet-50 text-violet-800 ring-1 ring-violet-200/80",
 };
 
 const PILL_DARK: Record<string, string> = {
@@ -26,6 +29,7 @@ const PILL_DARK: Record<string, string> = {
   draft: "bg-amber-400/20 text-amber-100 ring-1 ring-amber-300/30",
   submitted: "bg-emerald-400/20 text-emerald-100 ring-1 ring-emerald-300/30",
   skipped: "bg-orange-400/20 text-orange-100 ring-1 ring-orange-300/30",
+  out_of_expertise: "bg-violet-400/20 text-violet-100 ring-1 ring-violet-300/30",
 };
 
 export function annotationStatusPillClass(

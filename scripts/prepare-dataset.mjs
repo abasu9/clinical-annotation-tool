@@ -122,13 +122,13 @@ function collectRawImageRefs(obj) {
     if (v == null) return;
     if (Array.isArray(v)) {
       for (const x of v) {
-        if (x && typeof x === "object" && x.local_path) {
-          const lp = String(x.local_path).trim();
+        if (x && typeof x === "object") {
+          const lp = x.local_path != null ? String(x.local_path).trim() : "";
           if (lp) refs.push(lp);
-        } else {
-          const s = String(x).trim();
-          if (s && !/^https?:\/\//i.test(s)) refs.push(s);
+          continue;
         }
+        const s = String(x).trim();
+        if (s && s !== "[object Object]" && !/^https?:\/\//i.test(s)) refs.push(s);
       }
       return;
     }
@@ -185,7 +185,9 @@ for (let i = 0; i < lines.length; i++) {
   }
 
   const raw = collectRawImageRefs(obj);
-  const fromRow = raw.map((r) => path.basename(String(r).replace(/\\/g, "/")));
+  const fromRow = raw
+    .map((r) => path.basename(String(r).replace(/\\/g, "/")))
+    .filter((name) => name && name !== "[object Object]");
 
   const fromFolder = filesByPost.get(post_id) ?? [];
   const merged = Array.from(new Set([...fromRow, ...fromFolder]));

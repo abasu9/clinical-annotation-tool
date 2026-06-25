@@ -11,7 +11,7 @@ interface Props {
   onClose: () => void;
 }
 
-type StatusFilter = "all" | "submitted" | "draft" | "skipped";
+type StatusFilter = "all" | "submitted" | "draft" | "skipped" | "out_of_expertise";
 
 const slugify = (s: string) =>
   s.replace(/[^a-z0-9]+/gi, "_").toLowerCase() || "dataset";
@@ -56,11 +56,12 @@ export default function AnnotationsViewer({
   }, [rows]);
 
   const counts = useMemo(() => {
-    const c = { submitted: 0, draft: 0, skipped: 0 };
+    const c = { submitted: 0, draft: 0, skipped: 0, out_of_expertise: 0 };
     rows.forEach((r) => {
       if (r.status === "submitted") c.submitted += 1;
       else if (r.status === "draft") c.draft += 1;
       else if (r.status === "skipped") c.skipped += 1;
+      else if (r.status === "out_of_expertise") c.out_of_expertise += 1;
     });
     return c;
   }, [rows]);
@@ -134,7 +135,7 @@ export default function AnnotationsViewer({
               {loading
                 ? "Loading…"
                 : `${rows.length} annotation row(s) across ${totalSamples} samples · ` +
-                  `submitted ${counts.submitted} · draft ${counts.draft} · skipped ${counts.skipped}`}
+                  `submitted ${counts.submitted} · draft ${counts.draft} · skipped ${counts.skipped} · out of expertise ${counts.out_of_expertise}`}
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -175,6 +176,9 @@ export default function AnnotationsViewer({
               <option value="submitted">Submitted ({counts.submitted})</option>
               <option value="draft">Draft ({counts.draft})</option>
               <option value="skipped">Skipped ({counts.skipped})</option>
+              <option value="out_of_expertise">
+                Not within expertise ({counts.out_of_expertise})
+              </option>
             </select>
           </div>
           <div>

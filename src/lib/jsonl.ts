@@ -17,3 +17,21 @@ export function parseJSONL(text: string): Record<string, unknown>[] {
   });
   return out;
 }
+
+/** Parse a JSON array of sample objects, or a single object wrapper with a samples/rows array. */
+export function parseJSON(text: string): Record<string, unknown>[] {
+  const parsed = JSON.parse(text) as unknown;
+  if (Array.isArray(parsed)) {
+    return parsed.filter((r) => r && typeof r === "object") as Record<string, unknown>[];
+  }
+  if (parsed && typeof parsed === "object") {
+    const obj = parsed as Record<string, unknown>;
+    for (const key of ["samples", "rows", "data"]) {
+      const arr = obj[key];
+      if (Array.isArray(arr)) {
+        return arr.filter((r) => r && typeof r === "object") as Record<string, unknown>[];
+      }
+    }
+  }
+  throw new Error("JSON file must be an array of samples, or an object with a samples/rows/data array.");
+}

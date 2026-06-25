@@ -33,7 +33,7 @@ create table if not exists public.annotations (
   summarization_reason text,
   objective_image_description text,
   final_multimodal_clinical_summary text,
-  status text not null check (status in ('draft', 'submitted', 'skipped')),
+  status text not null check (status in ('draft', 'submitted', 'skipped', 'out_of_expertise')),
   created_at timestamp with time zone default now(),
   updated_at timestamp with time zone default now(),
   unique (sample_id, annotator_id)

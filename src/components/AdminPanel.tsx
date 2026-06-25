@@ -80,7 +80,7 @@ export default function AdminPanel({ onBack, backLabel = "Back" }: Props) {
 
   const handleImport = async () => {
     if (!name.trim() && !file) {
-      setError("Enter a dataset name and choose a .csv or .jsonl file.");
+      setError("Enter a dataset name and choose a .csv, .json, or .jsonl file.");
       return;
     }
     if (!name.trim()) {
@@ -212,7 +212,7 @@ export default function AdminPanel({ onBack, backLabel = "Back" }: Props) {
 
       <div className={`${adminCard} mb-6`}>
         <h3 className="text-lg font-semibold text-slate-800">
-          Import dataset (.csv or .jsonl)
+          Import dataset (.csv, .json, or .jsonl)
         </h3>
 
         <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-x-4">
@@ -251,7 +251,7 @@ export default function AdminPanel({ onBack, backLabel = "Back" }: Props) {
               <input
                 id="admin-import-file"
                 type="file"
-                accept=".csv,.jsonl,.ndjson,text/csv,application/json,text/plain"
+                accept=".csv,.json,.jsonl,.ndjson,text/csv,application/json,text/plain"
                 className="sr-only"
                 onChange={(e) => {
                   setFile(e.target.files?.[0] ?? null);
@@ -303,6 +303,7 @@ export default function AdminPanel({ onBack, backLabel = "Back" }: Props) {
                   <th className="py-2 pr-3">Submitted</th>
                   <th className="py-2 pr-3">Draft</th>
                   <th className="py-2 pr-3">Skipped</th>
+                  <th className="py-2 pr-3">Out of expertise</th>
                   <th className="py-2 pr-3">Remaining</th>
                   <th className="py-2 pr-3">View / Download</th>
                   <th className="py-2 pr-3"></th>
@@ -326,6 +327,9 @@ export default function AdminPanel({ onBack, backLabel = "Back" }: Props) {
                       </td>
                       <td className="py-2 pr-3 text-orange-700">
                         {p?.skipped ?? "—"}
+                      </td>
+                      <td className="py-2 pr-3 text-violet-700">
+                        {p?.out_of_expertise ?? "—"}
                       </td>
                       <td className="py-2 pr-3">{p?.remaining ?? "—"}</td>
                       <td className="py-2 pr-3">

@@ -5,7 +5,7 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { Annotation, Dataset, Sample } from "../lib/supabase";
+import { Annotation, Dataset, OUT_OF_EXPERTISE_IMAGE_STATUS, Sample } from "../lib/supabase";
 import {
   DatasetProgress,
   fetchAnnotationsForAnnotator,
@@ -71,7 +71,12 @@ function annotationToForm(a: Annotation | undefined): FormData {
 }
 
 function isTerminal(a: Annotation | undefined): boolean {
-  return !!a && (a.status === "submitted" || a.status === "skipped");
+  return (
+    !!a &&
+    (a.status === "submitted" ||
+      a.status === "skipped" ||
+      a.status === "out_of_expertise")
+  );
 }
 
 export default function AnnotationPage({
@@ -202,7 +207,10 @@ export default function AnnotationPage({
   );
 
   const persist = useCallback(
-    async (status: "draft" | "submitted" | "skipped", data: FormData) => {
+    async (
+      status: "draft" | "submitted" | "skipped" | "out_of_expertise",
+      data: FormData
+    ) => {
       if (!current) return null;
       const objective = data.objectiveImageDescription.trim() || null;
       const summary = data.finalMultimodalClinicalSummary.trim() || null;
@@ -297,7 +305,6 @@ export default function AnnotationPage({
       const next = findNextPending(samples, updatedMap, current.id);
       if (next >= 0) {
         showToast("Submitted. Loading next…");
-        // Use the freshly-updated map for the next view
         const target = samples[next];
         setIndex(next);
         setForm(annotationToForm(updatedMap[target.id]));
@@ -306,6 +313,44 @@ export default function AnnotationPage({
       }
     } catch (e: any) {
       setErrors([e.message ?? "Failed to submit."]);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleOutOfExpertise = async () => {
+    if (!current || busy) return;
+    const proceed = window.confirm(
+      `Mark post ${current.post_id} as not within your expertise?\n\nIt will be tracked for reassignment to another doctor. You can still view it later, but it will count as done for your queue.`
+    );
+    if (!proceed) return;
+    setBusy(true);
+    setErrors([]);
+    try {
+      const saved = await upsertAnnotation({
+        sample_id: current.id,
+        dataset_id: dataset.id,
+        post_id: current.post_id,
+        annotator_id: annotatorId,
+        image_status: OUT_OF_EXPERTISE_IMAGE_STATUS,
+        summarization_reason: null,
+        objective_image_description: null,
+        final_multimodal_clinical_summary: null,
+        status: "out_of_expertise",
+      });
+      const updatedMap = { ...annByMap, [current.id]: saved };
+      setAnnByMap(updatedMap);
+      dirtyRef.current = false;
+      const next = findNextPending(samples, updatedMap, current.id);
+      if (next >= 0) {
+        showToast("Marked out of expertise. Loading next…");
+        moveToWithoutPrompt(next);
+      } else {
+        showToast("Marked out of expertise.");
+        setForm(EMPTY_FORM);
+      }
+    } catch (e: any) {
+      setErrors([e.message ?? "Failed to save. Run the Supabase migration for out_of_expertise status."]);
     } finally {
       setBusy(false);
     }
@@ -491,6 +536,15 @@ export default function AnnotationPage({
               className="px-4 py-2.5 border border-amber-400/50 bg-amber-500/20 rounded-xl text-sm font-medium text-amber-100 hover:bg-amber-500/30 disabled:opacity-40 transition"
             >
               Save Draft
+            </button>
+            <button
+              type="button"
+              onClick={handleOutOfExpertise}
+              disabled={busy || currentAnn?.status === "out_of_expertise"}
+              className="px-4 py-2.5 border border-violet-300/60 bg-violet-500/20 rounded-xl text-sm font-medium text-violet-100 hover:bg-violet-500/30 disabled:opacity-40 transition"
+              title="Mark this case for reassignment to another doctor"
+            >
+              Not within my expertise
             </button>
             <button
               type="button"

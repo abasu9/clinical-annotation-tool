@@ -1,6 +1,6 @@
 import { supabase } from "./supabase";
 import { parseCSV } from "./csv";
-import { parseJSONL } from "./jsonl";
+import { parseJSON, parseJSONL } from "./jsonl";
 import { buildQuestion, collectImageRefs } from "./datasetFields";
 
 export interface ParsedSample {
@@ -74,10 +74,11 @@ export async function parseDatasetFile(file: File): Promise<ParsedSample[]> {
   const text = await readFileText(file);
   let rows: Record<string, unknown>[];
   if (ext === "csv") rows = parseCSV(text);
+  else if (ext === "json") rows = parseJSON(text);
   else if (ext === "jsonl" || ext === "ndjson") rows = parseJSONL(text);
   else {
     throw new Error(
-      "Unsupported file format. Use .csv or .jsonl. " +
+      "Unsupported file format. Use .csv, .json, or .jsonl. " +
         "(XLSX is not bundled in this prototype.)"
     );
   }

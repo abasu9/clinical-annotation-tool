@@ -36,7 +36,7 @@ export interface Sample {
   created_at: string;
 }
 
-export type AnnotationStatus = "draft" | "submitted" | "skipped";
+export type AnnotationStatus = "draft" | "submitted" | "skipped" | "out_of_expertise";
 
 export interface Annotation {
   id: string;
@@ -61,6 +61,9 @@ export const IMAGE_STATUS_OPTIONS = REQUIRES_SUMMARIZATION_OPTIONS;
 
 export type RequiresSummarization =
   (typeof REQUIRES_SUMMARIZATION_OPTIONS)[number] | "";
+
+/** Stored in image_status when status = out_of_expertise */
+export const OUT_OF_EXPERTISE_IMAGE_STATUS = "Not within expertise";
 
 /** Why summarization is not required (when image_status = No) */
 export const SUMMARIZATION_REASON_OPTIONS = [

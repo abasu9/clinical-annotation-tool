@@ -5,6 +5,7 @@ export interface DatasetProgress {
   submitted: number;
   draft: number;
   skipped: number;
+  out_of_expertise: number;
   remaining: number;
 }
 
@@ -32,7 +33,8 @@ export async function fetchDatasetProgress(
   const rows = (data ?? []) as Pick<Annotation, "status" | "sample_id">[];
   let submitted = 0,
     draft = 0,
-    skipped = 0;
+    skipped = 0,
+    out_of_expertise = 0;
   const processedSampleIds = new Set<string>();
   for (const r of rows) {
     if (r.status === "submitted") {
@@ -43,15 +45,25 @@ export async function fetchDatasetProgress(
     } else if (r.status === "skipped") {
       skipped += 1;
       processedSampleIds.add(r.sample_id);
+    } else if (r.status === "out_of_expertise") {
+      out_of_expertise += 1;
+      processedSampleIds.add(r.sample_id);
     }
   }
   // When scoped to a single annotator, draft also reduces remaining;
   // when global, draft does not count as remaining-done.
   const finishedSamples = annotatorId
-    ? submitted + skipped + draft
+    ? submitted + skipped + out_of_expertise + draft
     : processedSampleIds.size;
   const remaining = Math.max(0, totalSamples - finishedSamples);
-  return { total_samples: totalSamples, submitted, draft, skipped, remaining };
+  return {
+    total_samples: totalSamples,
+    submitted,
+    draft,
+    skipped,
+    out_of_expertise,
+    remaining,
+  };
 }
 
 export async function fetchSamples(datasetId: string): Promise<Sample[]> {
@@ -87,7 +99,7 @@ export interface UpsertAnnotationInput {
   summarization_reason: string | null;
   objective_image_description: string | null;
   final_multimodal_clinical_summary: string | null;
-  status: "draft" | "submitted" | "skipped";
+  status: "draft" | "submitted" | "skipped" | "out_of_expertise";
 }
 
 export async function upsertAnnotation(
