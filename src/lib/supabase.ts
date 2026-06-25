@@ -69,4 +69,5 @@ export const OUT_OF_EXPERTISE_IMAGE_STATUS = "Not within expertise";
 export const SUMMARIZATION_REASON_OPTIONS = [
   "Image is not clear",
   "Question is complete — don't need image for complete summary",
+  "Question is incomplete or too short",
 ] as const;
