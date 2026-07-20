@@ -2,6 +2,7 @@ import React, { useEffect, useState, useCallback } from "react";
 import {
   REQUIRES_SUMMARIZATION_OPTIONS,
   SUMMARIZATION_REASON_OPTIONS,
+  SUMMARIZATION_REASON_OTHER,
 } from "../lib/supabase";
 import {
   TaskGuidelineModal,
@@ -28,13 +29,21 @@ interface Props {
   errors: string[];
 }
 
+function isCustomReason(reason: string): boolean {
+  return Boolean(reason) && !REASON_SET.has(reason);
+}
+
 export default function AnnotationForm({ value, onChange, errors }: Props) {
   const [local, setLocal] = useState<FormData>(value);
+  const [otherMode, setOtherMode] = useState(() =>
+    isCustomReason(value.summarizationReason)
+  );
   const [task1HelpOpen, setTask1HelpOpen] = useState(false);
   const [task2HelpOpen, setTask2HelpOpen] = useState(false);
 
   useEffect(() => {
     setLocal(value);
+    setOtherMode(isCustomReason(value.summarizationReason));
   }, [
     value.imageStatus,
     value.summarizationReason,
@@ -56,6 +65,14 @@ export default function AnnotationForm({ value, onChange, errors }: Props) {
   const task2Words = countWords(local.finalMultimodalClinicalSummary);
   const task1Ok = meetsMinWordCount(local.objectiveImageDescription);
   const task2Ok = meetsMinWordCount(local.finalMultimodalClinicalSummary);
+
+  const showCustomReason = local.imageStatus === "No" && otherMode;
+  const reasonSelectValue =
+    local.imageStatus !== "No"
+      ? ""
+      : otherMode
+        ? SUMMARIZATION_REASON_OTHER
+        : local.summarizationReason;
 
   return (
     <div className={panel}>
@@ -83,7 +100,10 @@ export default function AnnotationForm({ value, onChange, errors }: Props) {
             onChange={(e) => {
               const val = e.target.value;
               const patch: Partial<FormData> = { imageStatus: val };
-              if (val === "Yes") patch.summarizationReason = "";
+              if (val === "Yes") {
+                patch.summarizationReason = "";
+                setOtherMode(false);
+              }
               update(patch);
             }}
             className={inputClass}
@@ -103,7 +123,7 @@ export default function AnnotationForm({ value, onChange, errors }: Props) {
           <p className="text-xs text-slate-500 mt-1.5">
             Choose <strong>Yes</strong> to complete both tasks below. Choose{" "}
             <strong>No</strong> if summarization is not needed — then pick a{" "}
-            <strong>Reason</strong>.
+            <strong>Reason</strong> (preset or write your own).
           </p>
         </div>
 
@@ -121,10 +141,23 @@ export default function AnnotationForm({ value, onChange, errors }: Props) {
           ) : (
             <>
               <select
-                value={local.summarizationReason}
-                onChange={(e) =>
-                  update({ summarizationReason: e.target.value })
-                }
+                value={reasonSelectValue}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (val === SUMMARIZATION_REASON_OTHER) {
+                    setOtherMode(true);
+                    update({
+                      summarizationReason: isCustomReason(
+                        local.summarizationReason
+                      )
+                        ? local.summarizationReason
+                        : "",
+                    });
+                  } else {
+                    setOtherMode(false);
+                    update({ summarizationReason: val });
+                  }
+                }}
                 disabled={local.imageStatus !== "No"}
                 className={`${inputClass} disabled:bg-slate-100 disabled:text-slate-400`}
               >
@@ -133,21 +166,34 @@ export default function AnnotationForm({ value, onChange, errors }: Props) {
                     ? "— Select —"
                     : "— Select No above first —"}
                 </option>
-                {local.summarizationReason &&
-                  !REASON_SET.has(local.summarizationReason) && (
-                    <option value={local.summarizationReason}>
-                      {local.summarizationReason} (legacy)
-                    </option>
-                  )}
                 {SUMMARIZATION_REASON_OPTIONS.map((opt) => (
                   <option key={opt} value={opt}>
                     {opt}
                   </option>
                 ))}
+                <option value={SUMMARIZATION_REASON_OTHER}>
+                  {SUMMARIZATION_REASON_OTHER}
+                </option>
               </select>
+              {showCustomReason && (
+                <div className="mt-2">
+                  <label className="block text-xs font-medium text-slate-600 mb-1">
+                    Custom reason <span className="text-red-500">*</span>
+                  </label>
+                  <textarea
+                    value={local.summarizationReason}
+                    onChange={(e) =>
+                      update({ summarizationReason: e.target.value })
+                    }
+                    rows={3}
+                    className={`${inputClass} resize-y`}
+                    placeholder="Write why summarization is not required…"
+                  />
+                </div>
+              )}
               <p className="text-xs text-slate-500 mt-1.5">
                 {local.imageStatus === "No"
-                  ? "Why is summarization not required?"
+                  ? "Choose a preset reason, or Other to write your own."
                   : "Choose No for summarization to enable this dropdown."}
               </p>
             </>

@@ -71,3 +71,6 @@ export const SUMMARIZATION_REASON_OPTIONS = [
   "Question is complete — don't need image for complete summary",
   "Question is incomplete or too short",
 ] as const;
+
+/** Dropdown sentinel — not stored; custom text is saved in summarization_reason */
+export const SUMMARIZATION_REASON_OTHER = "Other (write your own reason)";

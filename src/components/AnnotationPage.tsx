@@ -174,7 +174,9 @@ export default function AnnotationPage({
     }
     if (data.imageStatus === "No") {
       if (!data.summarizationReason.trim()) {
-        errs.push("Reason is required when summarization is No.");
+        errs.push(
+          "Reason is required when summarization is No (choose a preset or write a custom reason)."
+        );
       }
     }
     if (data.imageStatus === "Yes") {
@@ -243,7 +245,9 @@ export default function AnnotationPage({
       return;
     }
     if (needsReason) {
-      setErrors(["Reason is required when summarization is No."]);
+      setErrors([
+        "Reason is required when summarization is No (choose a preset or write a custom reason).",
+      ]);
       return;
     }
     const draftTaskErrs = taskFieldErrors(form);
