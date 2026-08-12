@@ -5,17 +5,12 @@ import React, {
   useRef,
   useState,
 } from "react";
+import { Rating } from "../lib/supabase";
 import {
-  Annotation,
-  Dataset,
-  Rating,
-  Sample,
-} from "../lib/supabase";
-import {
-  computeRatingProgress,
-  fetchRatingsForEvaluator,
-  fetchSamples,
-  fetchSubmittedAnnotationsForDataset,
+  computeIaaRatingProgress,
+  fetchIaaQuestionsForEvaluator,
+  fetchRatingsForEvaluatorAll,
+  IaaQuestion,
   RatingProgress,
   upsertRatings,
   UpsertRatingInput,
@@ -25,6 +20,11 @@ import {
   EMPTY_ANNOTATOR_SCORES,
   type AnnotatorRatingScores,
 } from "../lib/ratingCriteria";
+import {
+  codeForAnnotatorId,
+  resolveIaaCode,
+  type IaaCode,
+} from "../lib/iaaAnnotators";
 import AnnotatorRatingCard from "./AnnotatorRatingCard";
 import ImageViewer from "./ImageViewer";
 import PostPanel from "./PostPanel";
@@ -32,41 +32,54 @@ import ProgressBar from "./ProgressBar";
 import { contentCanvas, interiorStrip } from "../lib/ui";
 
 interface Props {
-  dataset: Dataset;
   evaluatorId: string;
-  onBackToDatasets: () => void;
+  onBack: () => void;
 }
 
 function ratingToScores(r: Rating | undefined): AnnotatorRatingScores {
-  if (!r) return { ...EMPTY_ANNOTATOR_SCORES, description: { ...EMPTY_ANNOTATOR_SCORES.description }, summary: { ...EMPTY_ANNOTATOR_SCORES.summary } };
+  if (!r) {
+    return {
+      description: { ...EMPTY_ANNOTATOR_SCORES.description },
+      summary: { ...EMPTY_ANNOTATOR_SCORES.summary },
+    };
+  }
   return {
     description: {
-      completeness: (r.desc_completeness as AnnotatorRatingScores["description"]["completeness"]) ?? null,
-      independence: (r.desc_independence as AnnotatorRatingScores["description"]["independence"]) ?? null,
+      completeness:
+        (r.desc_completeness as AnnotatorRatingScores["description"]["completeness"]) ??
+        null,
+      independence:
+        (r.desc_independence as AnnotatorRatingScores["description"]["independence"]) ??
+        null,
     },
     summary: {
-      informativeness: (r.sum_informativeness as AnnotatorRatingScores["summary"]["informativeness"]) ?? null,
-      completeness: (r.sum_completeness as AnnotatorRatingScores["summary"]["completeness"]) ?? null,
-      combination: (r.sum_combination as AnnotatorRatingScores["summary"]["combination"]) ?? null,
-      fluency: (r.sum_fluency as AnnotatorRatingScores["summary"]["fluency"]) ?? null,
+      informativeness:
+        (r.sum_informativeness as AnnotatorRatingScores["summary"]["informativeness"]) ??
+        null,
+      completeness:
+        (r.sum_completeness as AnnotatorRatingScores["summary"]["completeness"]) ??
+        null,
+      combination:
+        (r.sum_combination as AnnotatorRatingScores["summary"]["combination"]) ??
+        null,
+      fluency:
+        (r.sum_fluency as AnnotatorRatingScores["summary"]["fluency"]) ?? null,
     },
   };
 }
 
 function scoresToInput(
-  sample: Sample,
-  datasetId: string,
+  ann: IaaQuestion["annotations"][number],
   evaluatorId: string,
-  ratedAnnotatorId: string,
   scores: AnnotatorRatingScores,
   status: "draft" | "submitted"
 ): UpsertRatingInput {
   return {
-    sample_id: sample.id,
-    dataset_id: datasetId,
-    post_id: sample.post_id,
+    sample_id: ann.sample_id,
+    dataset_id: ann.dataset_id,
+    post_id: ann.post_id,
     evaluator_id: evaluatorId,
-    rated_annotator_id: ratedAnnotatorId,
+    rated_annotator_id: ann.annotator_id,
     desc_completeness: scores.description.completeness,
     desc_independence: scores.description.independence,
     sum_informativeness: scores.summary.informativeness,
@@ -77,18 +90,12 @@ function scoresToInput(
   };
 }
 
-export default function RatingPage({
-  dataset,
-  evaluatorId,
-  onBackToDatasets,
-}: Props) {
-  const [samples, setSamples] = useState<Sample[]>([]);
-  const [annsBySample, setAnnsBySample] = useState<
-    Record<string, Annotation[]>
-  >({});
+export default function RatingPage({ evaluatorId, onBack }: Props) {
+  const evaluatorCode = resolveIaaCode(evaluatorId);
+
+  const [questions, setQuestions] = useState<IaaQuestion[]>([]);
   const [ratings, setRatings] = useState<Rating[]>([]);
   const [index, setIndex] = useState(0);
-  /** scores keyed by rated_annotator_id for the current sample */
   const [formByAnnotator, setFormByAnnotator] = useState<
     Record<string, AnnotatorRatingScores>
   >({});
@@ -105,56 +112,38 @@ export default function RatingPage({
     window.setTimeout(() => setToast(""), 2800);
   }, []);
 
-  const refreshProgress = useCallback(
-    (bySample: Record<string, Annotation[]>, ratingRows: Rating[]) => {
-      setProgress(computeRatingProgress(bySample, ratingRows));
-    },
-    []
-  );
-
   useEffect(() => {
+    if (!evaluatorCode) {
+      setLoading(false);
+      setLoadError(
+        `Your login ID (“${evaluatorId}”) is not in the rating pool. Use one of: nf, c, sz, s, w (or the matching doctor login ID). Mondal is excluded.`
+      );
+      return;
+    }
+
     let cancelled = false;
     (async () => {
       setLoading(true);
       setLoadError("");
       try {
-        const [allSamples, submittedAnns, ratingRows] = await Promise.all([
-          fetchSamples(dataset.id),
-          fetchSubmittedAnnotationsForDataset(dataset.id),
-          fetchRatingsForEvaluator(dataset.id, evaluatorId),
+        const [qs, ratingRows] = await Promise.all([
+          fetchIaaQuestionsForEvaluator(evaluatorCode),
+          fetchRatingsForEvaluatorAll(evaluatorId),
         ]);
         if (cancelled) return;
-
-        const bySample: Record<string, Annotation[]> = {};
-        for (const a of submittedAnns) {
-          (bySample[a.sample_id] ??= []).push(a);
-        }
-        for (const id of Object.keys(bySample)) {
-          bySample[id].sort((x, y) =>
-            x.annotator_id.localeCompare(y.annotator_id)
-          );
-        }
-
-        const rateableSamples = allSamples.filter(
-          (s) => (bySample[s.id]?.length ?? 0) > 0
-        );
-
-        setSamples(rateableSamples);
-        setAnnsBySample(bySample);
+        setQuestions(qs);
         setRatings(ratingRows);
-        refreshProgress(bySample, ratingRows);
+        setProgress(computeIaaRatingProgress(qs, ratingRows));
 
-        const firstIncomplete = rateableSamples.findIndex((s) => {
-          const anns = bySample[s.id] ?? [];
-          return !anns.every((a) => {
-            const r = ratingRows.find(
-              (row) =>
-                row.sample_id === s.id &&
-                row.rated_annotator_id === a.annotator_id &&
-                row.status === "submitted"
-            );
-            return !!r;
-          });
+        const firstIncomplete = qs.findIndex((q) => {
+          return !q.annotations.every((a) =>
+            ratingRows.some(
+              (r) =>
+                r.post_id === q.post_id &&
+                r.rated_annotator_id === a.annotator_id &&
+                r.status === "submitted"
+            )
+          );
         });
         setIndex(firstIncomplete >= 0 ? firstIncomplete : 0);
       } catch (e: unknown) {
@@ -170,27 +159,21 @@ export default function RatingPage({
     return () => {
       cancelled = true;
     };
-  }, [dataset.id, evaluatorId, refreshProgress]);
+  }, [evaluatorCode, evaluatorId]);
 
-  const current = samples[index];
-  const currentAnns = useMemo(
-    () => (current ? annsBySample[current.id] ?? [] : []),
-    [annsBySample, current]
-  );
+  const current = questions[index];
 
-  const loadFormForIndex = useCallback(
-    (i: number, sampleList: Sample[], bySample: Record<string, Annotation[]>, ratingRows: Rating[]) => {
-      const sample = sampleList[i];
-      if (!sample) {
+  const loadForm = useCallback(
+    (q: IaaQuestion | undefined, ratingRows: Rating[]) => {
+      if (!q) {
         setFormByAnnotator({});
         return;
       }
-      const anns = bySample[sample.id] ?? [];
       const next: Record<string, AnnotatorRatingScores> = {};
-      for (const a of anns) {
+      for (const a of q.annotations) {
         const existing = ratingRows.find(
           (r) =>
-            r.sample_id === sample.id &&
+            r.post_id === q.post_id &&
             r.rated_annotator_id === a.annotator_id
         );
         next[a.annotator_id] = ratingToScores(existing);
@@ -203,50 +186,52 @@ export default function RatingPage({
   );
 
   useEffect(() => {
-    if (loading || samples.length === 0) return;
-    loadFormForIndex(index, samples, annsBySample, ratings);
-  }, [index, samples, annsBySample, ratings, loading, loadFormForIndex]);
+    if (loading || questions.length === 0) return;
+    loadForm(questions[index], ratings);
+  }, [index, questions, ratings, loading, loadForm]);
 
-  const moveTo = useCallback((i: number) => {
-    if (i < 0 || i >= samples.length) return;
-    setIndex(i);
-  }, [samples.length]);
+  const moveTo = useCallback(
+    (i: number) => {
+      if (i < 0 || i >= questions.length) return;
+      setIndex(i);
+    },
+    [questions.length]
+  );
 
   const buildPayloads = useCallback(
     (status: "draft" | "submitted"): UpsertRatingInput[] => {
       if (!current) return [];
-      return currentAnns.map((a) =>
+      return current.annotations.map((a) =>
         scoresToInput(
-          current,
-          dataset.id,
+          a,
           evaluatorId,
-          a.annotator_id,
           formByAnnotator[a.annotator_id] ?? EMPTY_ANNOTATOR_SCORES,
           status
         )
       );
     },
-    [current, currentAnns, dataset.id, evaluatorId, formByAnnotator]
+    [current, evaluatorId, formByAnnotator]
   );
 
   const persist = useCallback(
     async (status: "draft" | "submitted") => {
       const payloads = buildPayloads(status);
-      if (payloads.length === 0) return [];
+      if (payloads.length === 0) return;
       const saved = await upsertRatings(payloads);
       setRatings((prev) => {
-        const map = new Map(prev.map((r) => [`${r.sample_id}::${r.rated_annotator_id}`, r]));
+        const map = new Map(
+          prev.map((r) => [`${r.post_id}::${r.rated_annotator_id}`, r])
+        );
         for (const r of saved) {
-          map.set(`${r.sample_id}::${r.rated_annotator_id}`, r);
+          map.set(`${r.post_id}::${r.rated_annotator_id}`, r);
         }
         const next = Array.from(map.values());
-        refreshProgress(annsBySample, next);
+        setProgress(computeIaaRatingProgress(questions, next));
         return next;
       });
       dirtyRef.current = false;
-      return saved;
     },
-    [annsBySample, buildPayloads, refreshProgress]
+    [buildPayloads, questions]
   );
 
   const handleSaveDraft = async () => {
@@ -263,11 +248,13 @@ export default function RatingPage({
   };
 
   const handleSubmit = async () => {
+    if (!current) return;
     const missing: string[] = [];
-    for (const a of currentAnns) {
+    for (const a of current.annotations) {
       const scores = formByAnnotator[a.annotator_id] ?? EMPTY_ANNOTATOR_SCORES;
       if (!allScoresFilled(scores)) {
-        missing.push(`Complete all Likert scores for ${a.annotator_id}.`);
+        const code = codeForAnnotatorId(a.annotator_id) ?? "?";
+        missing.push(`Complete all Likert scores for annotator ${code}.`);
       }
     }
     if (missing.length) {
@@ -279,37 +266,13 @@ export default function RatingPage({
     try {
       await persist("submitted");
       showToast("Ratings submitted.");
-      if (index < samples.length - 1) moveTo(index + 1);
+      if (index < questions.length - 1) moveTo(index + 1);
     } catch (e: unknown) {
       setErrors([e instanceof Error ? e.message : "Failed to submit ratings."]);
     } finally {
       setBusy(false);
     }
   };
-
-  const sampleStatus = useMemo(() => {
-    if (!current) return "unstarted";
-    const anns = currentAnns;
-    if (anns.length === 0) return "unstarted";
-    const allSubmitted = anns.every((a) => {
-      const r = ratings.find(
-        (row) =>
-          row.sample_id === current.id &&
-          row.rated_annotator_id === a.annotator_id &&
-          row.status === "submitted"
-      );
-      return !!r;
-    });
-    if (allSubmitted) return "submitted";
-    const any = anns.some((a) =>
-      ratings.some(
-        (row) =>
-          row.sample_id === current.id &&
-          row.rated_annotator_id === a.annotator_id
-      )
-    );
-    return any || dirtyRef.current ? "draft" : "unstarted";
-  }, [current, currentAnns, ratings]);
 
   const progressForBar = progress
     ? {
@@ -321,6 +284,11 @@ export default function RatingPage({
         remaining: progress.remaining,
       }
     : null;
+
+  const updateScores = (annotatorId: string, scores: AnnotatorRatingScores) => {
+    dirtyRef.current = true;
+    setFormByAnnotator((prev) => ({ ...prev, [annotatorId]: scores }));
+  };
 
   if (loading) {
     return (
@@ -338,35 +306,35 @@ export default function RatingPage({
         </div>
         <button
           type="button"
-          onClick={onBackToDatasets}
+          onClick={onBack}
           className="mt-4 text-indigo-600 hover:underline text-sm"
         >
-          ← Back to datasets
+          ← Back
         </button>
       </div>
     );
   }
 
-  if (samples.length === 0) {
+  if (questions.length === 0) {
     return (
       <div className="max-w-xl mx-auto p-6 text-center">
-        <p className="text-slate-700 font-medium">
-          No rateable submissions yet
-        </p>
+        <p className="text-slate-700 font-medium">No questions to rate yet</p>
         <p className="mt-2 text-sm text-slate-500">
-          Rating needs submitted human annotations (with image description and
-          summary). AI annotators are excluded.
+          Waiting for other annotators’ submitted descriptions and summaries on
+          shared posts.
         </p>
         <button
           type="button"
-          onClick={onBackToDatasets}
+          onClick={onBack}
           className="mt-4 text-indigo-600 hover:underline text-sm"
         >
-          ← Back to datasets
+          ← Back
         </button>
       </div>
     );
   }
+
+  const peerCount = current?.annotations.length ?? 0;
 
   return (
     <div className="flex-1 flex flex-col">
@@ -377,7 +345,7 @@ export default function RatingPage({
         <span className="shrink-0 text-slate-800">
           Question{" "}
           <span className="font-bold text-slate-900">
-            {index + 1} / {samples.length}
+            {index + 1} / {questions.length}
           </span>
           <span className="mx-2 text-indigo-300">·</span>
           <span className="font-mono font-semibold text-indigo-800">
@@ -385,18 +353,24 @@ export default function RatingPage({
           </span>
           <span className="mx-2 text-indigo-300">·</span>
           <span className="rounded-full bg-white px-2 py-0.5 text-xs font-semibold text-slate-700 ring-1 ring-indigo-200">
-            {currentAnns.length} annotator{currentAnns.length === 1 ? "" : "s"}
+            Rate {peerCount} annotator{peerCount === 1 ? "" : "s"}
           </span>
-          <span className="mx-2 text-indigo-300">·</span>
-          <span className="capitalize text-slate-600">{sampleStatus}</span>
+          {evaluatorCode ? (
+            <>
+              <span className="mx-2 text-indigo-300">·</span>
+              <span className="rounded-full bg-teal-50 px-2 py-0.5 text-xs font-semibold text-teal-800 ring-1 ring-teal-200">
+                You: {evaluatorCode}
+              </span>
+            </>
+          ) : null}
         </span>
         <div className="ml-auto">
           <button
             type="button"
-            onClick={onBackToDatasets}
+            onClick={onBack}
             className="shrink-0 rounded-lg bg-white px-3 py-1.5 font-semibold text-indigo-900 shadow-sm ring-1 ring-indigo-300 transition hover:bg-indigo-50"
           >
-            Change dataset
+            Change task
           </button>
         </div>
       </div>
@@ -422,9 +396,9 @@ export default function RatingPage({
           </div>
 
           <div className="rounded-xl border border-indigo-200/70 bg-white/70 px-4 py-3 text-sm text-slate-600">
-            Rate every annotator below on one scrollable page. Image description
-            criteria: Completeness, Independence. Summary criteria:
-            Informativeness, Completeness, Combination, Fluency. Scale: 1–5.
+            One scrollable page per question. Rate the other annotators only
+            (codes: nf, c, sz, s, w). Your own submission is hidden. Image
+            descriptions first, then summaries.
           </div>
 
           {errors.length > 0 && (
@@ -437,28 +411,57 @@ export default function RatingPage({
             </div>
           )}
 
-          <div className="flex flex-col gap-5">
-            {currentAnns.map((a, i) => (
-              <AnnotatorRatingCard
-                key={a.id}
-                index={i}
-                annotatorId={a.annotator_id}
-                imageDescription={a.objective_image_description ?? ""}
-                summary={a.final_multimodal_clinical_summary ?? ""}
-                scores={
-                  formByAnnotator[a.annotator_id] ?? EMPTY_ANNOTATOR_SCORES
-                }
-                disabled={busy}
-                onChange={(scores) => {
-                  dirtyRef.current = true;
-                  setFormByAnnotator((prev) => ({
-                    ...prev,
-                    [a.annotator_id]: scores,
-                  }));
-                }}
-              />
-            ))}
-          </div>
+          <section className="flex flex-col gap-4">
+            <div className="rounded-xl border border-indigo-200/80 bg-indigo-50/80 px-4 py-3">
+              <h2 className="text-base font-bold text-slate-900">
+                Image descriptions
+              </h2>
+              <p className="mt-0.5 text-xs text-slate-600">
+                Completeness and Independence (1–5) for each annotator.
+              </p>
+            </div>
+            {current?.annotations.map((a) => {
+              const code = codeForAnnotatorId(a.annotator_id) as IaaCode;
+              return (
+                <AnnotatorRatingCard
+                  key={`desc-${a.id}`}
+                  code={code}
+                  section="description"
+                  text={a.objective_image_description ?? ""}
+                  scores={
+                    formByAnnotator[a.annotator_id] ?? EMPTY_ANNOTATOR_SCORES
+                  }
+                  disabled={busy}
+                  onChange={(scores) => updateScores(a.annotator_id, scores)}
+                />
+              );
+            })}
+          </section>
+
+          <section className="flex flex-col gap-4">
+            <div className="rounded-xl border border-teal-200/80 bg-teal-50/80 px-4 py-3">
+              <h2 className="text-base font-bold text-slate-900">Summaries</h2>
+              <p className="mt-0.5 text-xs text-slate-600">
+                Informativeness, Completeness, Combination, Fluency (1–5).
+              </p>
+            </div>
+            {current?.annotations.map((a) => {
+              const code = codeForAnnotatorId(a.annotator_id) as IaaCode;
+              return (
+                <AnnotatorRatingCard
+                  key={`sum-${a.id}`}
+                  code={code}
+                  section="summary"
+                  text={a.final_multimodal_clinical_summary ?? ""}
+                  scores={
+                    formByAnnotator[a.annotator_id] ?? EMPTY_ANNOTATOR_SCORES
+                  }
+                  disabled={busy}
+                  onChange={(scores) => updateScores(a.annotator_id, scores)}
+                />
+              );
+            })}
+          </section>
         </div>
       </div>
 
@@ -492,9 +495,8 @@ export default function RatingPage({
             <button
               type="button"
               onClick={() => moveTo(index + 1)}
-              disabled={index >= samples.length - 1 || busy}
+              disabled={index >= questions.length - 1 || busy}
               className="px-4 py-2.5 border border-white/20 rounded-xl text-sm font-medium text-slate-200 bg-white/10 hover:bg-white/20 disabled:opacity-40 transition"
-              title="Go to next question without saving"
             >
               Next →
             </button>

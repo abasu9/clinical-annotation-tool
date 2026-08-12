@@ -9,6 +9,10 @@ import {
 } from "../lib/data";
 import DashboardStatCards from "./DashboardStatCards";
 import type { WorkMode } from "./ModeSelect";
+import {
+  ratingDatasetInitials,
+  ratingDatasetLabel,
+} from "../lib/anonymize";
 
 interface Props {
   annotatorId: string;
@@ -207,6 +211,11 @@ export default function DatasetSelector({
         {datasets.map((d, i) => {
           const p = progress[d.id];
           const rp = ratingProgress[d.id];
+          const blind = mode === "rate";
+          const title = blind ? ratingDatasetLabel(i) : d.name;
+          const initials = blind
+            ? ratingDatasetInitials(i)
+            : d.name.slice(0, 2).toUpperCase();
           return (
             <button
               key={d.id}
@@ -223,11 +232,11 @@ export default function DatasetSelector({
                         : "bg-gradient-to-br from-violet-500 to-violet-700"
                   }`}
                 >
-                  {d.name.slice(0, 2).toUpperCase()}
+                  {initials}
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="font-semibold text-slate-800 group-hover:text-indigo-700 transition">
-                    {d.name}
+                    {title}
                   </p>
                   <p className="text-sm text-slate-500 mt-0.5">
                     {mode === "rate" ? (
@@ -255,14 +264,14 @@ export default function DatasetSelector({
                             · {p.remaining} remaining for you
                           </span>
                         ) : null}
+                        {d.uploaded_filename ? (
+                          <span className="text-slate-400">
+                            {" "}
+                            · {d.uploaded_filename}
+                          </span>
+                        ) : null}
                       </>
                     )}
-                    {d.uploaded_filename ? (
-                      <span className="text-slate-400">
-                        {" "}
-                        · {d.uploaded_filename}
-                      </span>
-                    ) : null}
                   </p>
                 </div>
                 <span className="shrink-0 rounded-lg bg-indigo-50 px-3 py-1.5 text-sm font-semibold text-indigo-700 group-hover:bg-indigo-600 group-hover:text-white transition">

@@ -13,6 +13,11 @@ import RatingPage from "./components/RatingPage";
 import ModeSelect, { type WorkMode } from "./components/ModeSelect";
 import AdminPasswordGate from "./components/AdminPasswordGate";
 import { isAdminUnlocked, lockAdmin } from "./lib/adminGate";
+import {
+  clearIaaPinUnlocks,
+  isIaaPinUnlocked,
+  resolveIaaCode,
+} from "./lib/iaaAnnotators";
 
 type View =
   | "login"
@@ -59,18 +64,37 @@ export default function App() {
 
   useEffect(() => {
     const stored = loadStoredAnnotatorId();
-    if (stored) {
+    if (!stored) return;
+    const code = resolveIaaCode(stored);
+    // Resume session only if PIN was unlocked in this browser tab
+    if (code && isIaaPinUnlocked(code)) {
       setAnnotatorId(stored);
-      // Always show Annotation vs Rating so the chooser is never skipped.
       clearStoredMode();
       setMode(null);
       setView("mode");
     }
   }, []);
 
+  // Any interior view requires a PIN-unlocked session
+  useEffect(() => {
+    if (view === "login" || view === "admin") return;
+    if (!annotatorId) {
+      setView("login");
+      return;
+    }
+    const code = resolveIaaCode(annotatorId);
+    if (!code || !isIaaPinUnlocked(code)) {
+      clearStoredMode();
+      setMode(null);
+      setAnnotatorId("");
+      setView("login");
+    }
+  }, [view, annotatorId]);
+
   const handleLogout = () => {
     clearStoredAnnotatorId();
     clearStoredMode();
+    clearIaaPinUnlocks();
     setAnnotatorId("");
     setMode(null);
     setDataset(null);
@@ -94,7 +118,13 @@ export default function App() {
   const exitAdmin = () => {
     lockAdmin();
     setAdminUnlocked(false);
-    setView(annotatorId ? (mode ? "selectDataset" : "mode") : "login");
+    if (!annotatorId) {
+      setView("login");
+      return;
+    }
+    if (mode === "rate") setView("rate");
+    else if (mode === "annotate") setView("selectDataset");
+    else setView("mode");
   };
 
   if (view === "admin") {
@@ -132,7 +162,8 @@ export default function App() {
             setMode(m);
             saveStoredMode(m);
             setDataset(null);
-            setView("selectDataset");
+            // Rating: skip dataset picker — go straight to IAA workspace
+            setView(m === "rate" ? "rate" : "selectDataset");
           }}
           onLogout={handleLogout}
         />
@@ -150,7 +181,7 @@ export default function App() {
         />
         <DatasetSelector
           annotatorId={annotatorId}
-          mode={mode ?? "annotate"}
+          mode="annotate"
           onChangeMode={() => {
             setDataset(null);
             clearStoredMode();
@@ -159,13 +190,39 @@ export default function App() {
           }}
           onSelect={(d) => {
             setDataset(d);
-            setView(mode === "rate" ? "rate" : "annotate");
+            setView("annotate");
           }}
         />
       </AppInteriorShell>
     );
   }
 
+  if (view === "rate") {
+    const code = resolveIaaCode(annotatorId);
+    if (!code) {
+      return null;
+    }
+    return (
+      <AppInteriorShell>
+        <Header
+          // Blind: show code only, never a doctor name in the header
+          annotatorId={code}
+          onAdmin={() => setView("admin")}
+          onLogout={handleLogout}
+        />
+        <RatingPage
+          evaluatorId={annotatorId}
+          onBack={() => {
+            clearStoredMode();
+            setMode(null);
+            setView("mode");
+          }}
+        />
+      </AppInteriorShell>
+    );
+  }
+
+  // view === "annotate"
   return (
     <AppInteriorShell>
       <Header
@@ -174,26 +231,15 @@ export default function App() {
         onAdmin={() => setView("admin")}
         onLogout={handleLogout}
       />
-      {dataset && mode === "rate" && view === "rate" ? (
-        <RatingPage
+      {dataset && (
+        <AnnotationPage
           dataset={dataset}
-          evaluatorId={annotatorId}
+          annotatorId={annotatorId}
           onBackToDatasets={() => {
             setDataset(null);
             setView("selectDataset");
           }}
         />
-      ) : (
-        dataset && (
-          <AnnotationPage
-            dataset={dataset}
-            annotatorId={annotatorId}
-            onBackToDatasets={() => {
-              setDataset(null);
-              setView("selectDataset");
-            }}
-          />
-        )
       )}
     </AppInteriorShell>
   );

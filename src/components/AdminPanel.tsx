@@ -6,11 +6,14 @@ import {
   fetchDatasetProgress,
   fetchDatasets,
   fetchExportRows,
+  fetchRatingExportRows,
 } from "../lib/data";
 import { importDatasetFile } from "../lib/importDataset";
 import { downloadFile, toCSV } from "../lib/csv";
 import { toJSONL } from "../lib/jsonl";
+import { downloadRatingsPerAnnotator } from "../lib/exportRatings";
 import AnnotationsViewer from "./AnnotationsViewer";
+import RatingsViewer from "./RatingsViewer";
 import DashboardStatCards from "./DashboardStatCards";
 import { ANNOTATION_GUIDELINES_URL } from "../lib/guidelines";
 import { adminCard, btnPrimary, inputClass } from "../lib/ui";
@@ -31,6 +34,7 @@ export default function AdminPanel({ onBack, backLabel = "Back" }: Props) {
   const [error, setError] = useState("");
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [viewing, setViewing] = useState<Dataset | null>(null);
+  const [viewingRatings, setViewingRatings] = useState(false);
 
   const load = useCallback(async () => {
     setError("");
@@ -153,13 +157,34 @@ export default function AdminPanel({ onBack, backLabel = "Back" }: Props) {
     }
   };
 
+  const exportRatings = async (format: "csv" | "jsonl") => {
+    setError("");
+    try {
+      const rows = await fetchRatingExportRows();
+      if (rows.length === 0) {
+        setMessage("No ratings to export yet.");
+        return;
+      }
+      // One file per evaluator: iaa_ratings_nf.csv, iaa_ratings_c.csv, …
+      const { files, rows: n } = await downloadRatingsPerAnnotator(
+        rows,
+        format
+      );
+      setMessage(
+        `Exported ${n} rating rows as ${files} annotator file(s) (iaa_ratings_nf, _c, _sz, _s, _w).`
+      );
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Ratings export failed.");
+    }
+  };
+
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
       <div className="mb-8 flex items-start justify-between gap-4 flex-wrap">
         <div>
           <h2 className="text-2xl font-bold text-slate-900">Admin Panel</h2>
           <p className="text-sm text-slate-500 mt-1">
-            Import datasets, export annotations, manage storage
+            Import datasets, export annotations &amp; ratings, manage storage
           </p>
         </div>
         <button
@@ -169,6 +194,47 @@ export default function AdminPanel({ onBack, backLabel = "Back" }: Props) {
         >
           ← {backLabel}
         </button>
+      </div>
+
+      <div className={`${adminCard} mb-6`}>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h3 className="text-lg font-semibold text-slate-800">IAA ratings</h3>
+            <p className="mt-1 text-sm text-slate-500">
+              Export downloads one file per evaluator (
+              <span className="font-mono">iaa_ratings_nf.csv</span>,{" "}
+              <span className="font-mono">_c</span>,{" "}
+              <span className="font-mono">_sz</span>,{" "}
+              <span className="font-mono">_s</span>,{" "}
+              <span className="font-mono">_w</span>).
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setViewingRatings(true)}
+              className="rounded-lg bg-teal-600 px-3 py-1.5 text-sm font-semibold text-white shadow-sm hover:bg-teal-500"
+            >
+              View ratings
+            </button>
+            <button
+              type="button"
+              onClick={() => exportRatings("csv")}
+              className="rounded-lg bg-indigo-50 px-3 py-1.5 text-sm font-semibold text-indigo-700 ring-1 ring-indigo-200 hover:bg-indigo-100"
+              title="One CSV per evaluator (nf, c, sz, s, w)"
+            >
+              CSV per annotator
+            </button>
+            <button
+              type="button"
+              onClick={() => exportRatings("jsonl")}
+              className="rounded-lg bg-indigo-50 px-3 py-1.5 text-sm font-semibold text-indigo-700 ring-1 ring-indigo-200 hover:bg-indigo-100"
+              title="One JSONL per evaluator (nf, c, sz, s, w)"
+            >
+              JSONL per annotator
+            </button>
+          </div>
+        </div>
       </div>
 
       <DashboardStatCards
@@ -396,6 +462,10 @@ export default function AdminPanel({ onBack, backLabel = "Back" }: Props) {
           totalSamples={viewing.total_samples}
           onClose={() => setViewing(null)}
         />
+      )}
+
+      {viewingRatings && (
+        <RatingsViewer onClose={() => setViewingRatings(false)} />
       )}
     </div>
   );

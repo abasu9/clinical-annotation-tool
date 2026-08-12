@@ -1,5 +1,6 @@
 import React from "react";
 import { authGradientButtonClass, authGradientButtonStyle } from "../lib/ui";
+import { resolveIaaCode } from "../lib/iaaAnnotators";
 
 export type WorkMode = "annotate" | "rate";
 
@@ -14,12 +15,19 @@ export default function ModeSelect({
   onSelect,
   onLogout,
 }: Props) {
+  const code = resolveIaaCode(annotatorId);
+
   return (
     <div className="mx-auto w-full max-w-2xl flex-1 px-4 py-10 sm:px-6">
       <div className="mb-8 rounded-2xl border border-indigo-200/70 bg-gradient-to-r from-indigo-600/90 via-indigo-500/85 to-teal-600/75 p-6 shadow-lg shadow-indigo-500/25 text-white">
         <p className="text-sm text-indigo-100">
           Signed in as{" "}
           <span className="font-semibold text-white">{annotatorId}</span>
+          {code ? (
+            <span className="ml-2 rounded-md bg-white/15 px-2 py-0.5 font-mono text-xs">
+              {code}
+            </span>
+          ) : null}
         </p>
         <h2 className="mt-2 text-2xl font-bold tracking-tight">
           Choose your task
@@ -66,8 +74,8 @@ export default function ModeSelect({
             Rating
           </h3>
           <p className="mt-2 text-sm text-slate-600 leading-relaxed">
-            Rate each human annotator’s description and summary on Likert
-            scales (1–5). AI submissions are excluded.
+            Rate the other four annotators on shared questions (Likert 1–5).
+            Opens the rating page directly.
           </p>
           <span className="mt-5 inline-flex rounded-xl border border-teal-300 bg-teal-600 px-4 py-2 text-xs font-semibold text-white shadow-sm">
             Start rating →

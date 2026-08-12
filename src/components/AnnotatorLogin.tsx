@@ -1,5 +1,11 @@
 import React, { useState } from "react";
 import { ANNOTATION_GUIDELINES_URL } from "../lib/guidelines";
+import {
+  isBlindDisplayCode,
+  resolveIaaCode,
+  unlockIaaPin,
+  verifyIaaPin,
+} from "../lib/iaaAnnotators";
 import { authGradientButtonClass, authGradientButtonStyle } from "../lib/ui";
 import AuthFormCard from "./AuthFormCard";
 import AuthPageLayout from "./AuthPageLayout";
@@ -37,13 +43,39 @@ interface Props {
 
 export default function AnnotatorLogin({ onLogin, onAdmin }: Props) {
   const [id, setId] = useState(loadStoredAnnotatorId());
+  const [pin, setPin] = useState("");
+  const [error, setError] = useState("");
 
-  const canContinue = id.trim().length > 0;
+  const canContinue = id.trim().length > 0 && pin.trim().length > 0;
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     const trimmed = id.trim();
-    if (!trimmed) return;
+    const pinTrimmed = pin.trim();
+    if (!trimmed || !pinTrimmed) return;
+
+    if (isBlindDisplayCode(trimmed)) {
+      setError(
+        "nf, c, sz, s, and w are display codes only. Log in with your real annotator ID + PIN."
+      );
+      return;
+    }
+
+    const code = resolveIaaCode(trimmed);
+    if (!code) {
+      setError(
+        "Unknown annotator ID. Use your assigned ID (e.g. dr naafila), not a blind code."
+      );
+      return;
+    }
+
+    if (!verifyIaaPin(code, pinTrimmed)) {
+      setError("Incorrect PIN.");
+      return;
+    }
+
+    setError("");
+    unlockIaaPin(code);
     saveStoredAnnotatorId(trimmed);
     onLogin(trimmed);
   };
@@ -58,23 +90,56 @@ export default function AnnotatorLogin({ onLogin, onAdmin }: Props) {
           </span>
         </h2>
         <p className="mt-2 text-sm text-slate-500">
-          After sign-in, choose Annotation or Rating.
+          Sign in with your annotator ID and private PIN. Then choose Annotation
+          or Rating.
         </p>
 
         <form onSubmit={submit} className="mt-7 space-y-4">
           <div>
-            <label htmlFor="annotator-id" className="mb-1.5 block text-sm font-medium text-slate-600">
+            <label
+              htmlFor="annotator-id"
+              className="mb-1.5 block text-sm font-medium text-slate-600"
+            >
               Annotator ID
             </label>
             <input
               id="annotator-id"
               type="text"
               value={id}
-              onChange={(e) => setId(e.target.value)}
-              placeholder="e.g. expert_001"
+              onChange={(e) => {
+                setId(e.target.value);
+                setError("");
+              }}
+              placeholder="e.g. dr naafila"
               className="w-full rounded-xl border border-slate-200/90 bg-white/80 px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 shadow-sm transition focus:border-indigo-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/15"
               autoFocus
+              autoComplete="username"
             />
+          </div>
+
+          <div>
+            <label
+              htmlFor="annotator-pin"
+              className="mb-1.5 block text-sm font-medium text-slate-600"
+            >
+              PIN
+            </label>
+            <input
+              id="annotator-pin"
+              type="password"
+              inputMode="numeric"
+              value={pin}
+              onChange={(e) => {
+                setPin(e.target.value);
+                setError("");
+              }}
+              placeholder="Your private PIN"
+              className="w-full rounded-xl border border-slate-200/90 bg-white/80 px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 shadow-sm transition focus:border-indigo-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/15"
+              autoComplete="current-password"
+            />
+            {error ? (
+              <p className="mt-2 text-sm text-red-600">{error}</p>
+            ) : null}
           </div>
 
           <button

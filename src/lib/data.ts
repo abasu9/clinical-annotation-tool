@@ -6,6 +6,13 @@ import {
   Sample,
 } from "./supabase";
 import { isAiAnnotatorId } from "./ratingCriteria";
+import {
+  allIaaAnnotatorIds,
+  codeForAnnotatorId,
+  IAA_INCLUDED_DATASET_NAMES,
+  resolveIaaCode,
+  type IaaCode,
+} from "./iaaAnnotators";
 
 export interface DatasetProgress {
   total_samples: number;
@@ -241,6 +248,203 @@ export async function fetchRatingProgress(
     (bySample[a.sample_id] ??= []).push(a);
   }
   return computeRatingProgress(bySample, ratings);
+}
+
+/* ── Inter-annotator agreement (cross-dataset by post_id) ───────────── */
+
+export interface IaaQuestion {
+  post_id: string;
+  question: string;
+  image_urls: string[];
+  /** Annotations from other IAA annotators (excludes the evaluator). */
+  annotations: Annotation[];
+}
+
+export async function fetchRatingsForEvaluatorAll(
+  evaluatorId: string
+): Promise<Rating[]> {
+  const { data, error } = await supabase
+    .from("ratings")
+    .select("*")
+    .eq("evaluator_id", evaluatorId);
+  if (error) throw error;
+  return (data ?? []) as Rating[];
+}
+
+export async function fetchAllRatings(): Promise<Rating[]> {
+  const { data, error } = await supabase
+    .from("ratings")
+    .select("*")
+    .order("updated_at", { ascending: false });
+  if (error) throw error;
+  return (data ?? []) as Rating[];
+}
+
+export interface RatingExportRow {
+  post_id: string;
+  evaluator_id: string;
+  evaluator_code: string | null;
+  rated_annotator_id: string;
+  rated_annotator_code: string | null;
+  desc_completeness: number | null;
+  desc_independence: number | null;
+  sum_informativeness: number | null;
+  sum_completeness: number | null;
+  sum_combination: number | null;
+  sum_fluency: number | null;
+  status: string;
+  sample_id: string;
+  dataset_id: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export async function fetchRatingExportRows(): Promise<RatingExportRow[]> {
+  const rows = await fetchAllRatings();
+  return rows.map((r) => ({
+    post_id: r.post_id,
+    evaluator_id: r.evaluator_id,
+    evaluator_code: resolveIaaCode(r.evaluator_id),
+    rated_annotator_id: r.rated_annotator_id,
+    rated_annotator_code: codeForAnnotatorId(r.rated_annotator_id),
+    desc_completeness: r.desc_completeness,
+    desc_independence: r.desc_independence,
+    sum_informativeness: r.sum_informativeness,
+    sum_completeness: r.sum_completeness,
+    sum_combination: r.sum_combination,
+    sum_fluency: r.sum_fluency,
+    status: r.status,
+    sample_id: r.sample_id,
+    dataset_id: r.dataset_id,
+    created_at: r.created_at,
+    updated_at: r.updated_at,
+  }));
+}
+
+/**
+ * Load IAA pool: submitted annotations from the 5 included doctors /
+ * included datasets, grouped by post_id. Evaluator’s own work is omitted.
+ */
+export async function fetchIaaQuestionsForEvaluator(
+  evaluatorCode: IaaCode
+): Promise<IaaQuestion[]> {
+  const { data: datasets, error: dsErr } = await supabase
+    .from("datasets")
+    .select("id, name")
+    .in("name", [...IAA_INCLUDED_DATASET_NAMES]);
+  if (dsErr) throw dsErr;
+  const datasetIds = ((datasets ?? []) as Pick<Dataset, "id" | "name">[]).map(
+    (d) => d.id
+  );
+  if (datasetIds.length === 0) return [];
+
+  const iaaIds = allIaaAnnotatorIds();
+  const { data: annRows, error: annErr } = await supabase
+    .from("annotations")
+    .select("*")
+    .in("dataset_id", datasetIds)
+    .in("annotator_id", iaaIds)
+    .eq("status", "submitted")
+    .eq("image_status", "Yes");
+  if (annErr) throw annErr;
+
+  const annotations = ((annRows ?? []) as Annotation[]).filter(
+    (a) => isRateableAnnotation(a) && isIaaPoolAnnotator(a.annotator_id)
+  );
+
+  const byPost = new Map<string, Annotation[]>();
+  for (const a of annotations) {
+    const code = codeForAnnotatorId(a.annotator_id);
+    if (!code || code === evaluatorCode) continue;
+    (byPost.get(a.post_id) ?? byPost.set(a.post_id, []).get(a.post_id)!).push(
+      a
+    );
+  }
+
+  // Prefer one sample row per post for image/question (from included datasets)
+  const { data: sampleRows, error: sErr } = await supabase
+    .from("samples")
+    .select("*")
+    .in("dataset_id", datasetIds);
+  if (sErr) throw sErr;
+  const sampleByPost = new Map<string, Sample>();
+  for (const s of (sampleRows ?? []) as Sample[]) {
+    if (!sampleByPost.has(s.post_id)) sampleByPost.set(s.post_id, s);
+  }
+
+  const questions: IaaQuestion[] = [];
+  for (const [postId, anns] of byPost) {
+    if (anns.length === 0) continue;
+    // Deduplicate by annotator code (keep first)
+    const seen = new Set<IaaCode>();
+    const unique: Annotation[] = [];
+    for (const a of anns) {
+      const code = codeForAnnotatorId(a.annotator_id);
+      if (!code || seen.has(code)) continue;
+      seen.add(code);
+      unique.push(a);
+    }
+    unique.sort((a, b) => {
+      const ca = codeForAnnotatorId(a.annotator_id) ?? "";
+      const cb = codeForAnnotatorId(b.annotator_id) ?? "";
+      return ca.localeCompare(cb);
+    });
+    const sample = sampleByPost.get(postId);
+    questions.push({
+      post_id: postId,
+      question: sample?.question ?? "",
+      image_urls: sample?.image_urls ?? [],
+      annotations: unique,
+    });
+  }
+
+  questions.sort((a, b) => a.post_id.localeCompare(b.post_id));
+  return questions;
+}
+
+function isIaaPoolAnnotator(annotatorId: string): boolean {
+  return codeForAnnotatorId(annotatorId) != null;
+}
+
+/** Progress keyed by post_id for IAA rating. */
+export function computeIaaRatingProgress(
+  questions: IaaQuestion[],
+  ratings: Rating[]
+): RatingProgress {
+  const byPostAnnotator = new Map<string, Rating>();
+  for (const r of ratings) {
+    byPostAnnotator.set(`${r.post_id}::${r.rated_annotator_id}`, r);
+  }
+
+  let submitted = 0;
+  let draft = 0;
+  for (const q of questions) {
+    if (q.annotations.length === 0) continue;
+    let allSubmitted = true;
+    let anyRating = false;
+    let anyDraft = false;
+    for (const a of q.annotations) {
+      const r = byPostAnnotator.get(`${q.post_id}::${a.annotator_id}`);
+      if (!r) {
+        allSubmitted = false;
+        continue;
+      }
+      anyRating = true;
+      if (r.status === "submitted") continue;
+      allSubmitted = false;
+      if (r.status === "draft") anyDraft = true;
+    }
+    if (allSubmitted) submitted += 1;
+    else if (anyDraft || anyRating) draft += 1;
+  }
+
+  const total = questions.filter((q) => q.annotations.length > 0).length;
+  return {
+    total_rateable_samples: total,
+    submitted,
+    draft,
+    remaining: Math.max(0, total - submitted - draft),
+  };
 }
 
 export interface UpsertAnnotationInput {
