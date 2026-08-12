@@ -61,13 +61,10 @@ export default function App() {
     const stored = loadStoredAnnotatorId();
     if (stored) {
       setAnnotatorId(stored);
-      const storedMode = loadStoredMode();
-      if (storedMode) {
-        setMode(storedMode);
-        setView("selectDataset");
-      } else {
-        setView("mode");
-      }
+      // Always show Annotation vs Rating so the chooser is never skipped.
+      clearStoredMode();
+      setMode(null);
+      setView("mode");
     }
   }, []);
 
