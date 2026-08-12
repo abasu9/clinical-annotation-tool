@@ -1,41 +1,73 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Dataset } from "../lib/supabase";
-import { DatasetProgress, fetchDatasetProgress, fetchDatasets } from "../lib/data";
+import {
+  DatasetProgress,
+  fetchDatasetProgress,
+  fetchDatasets,
+  fetchRatingProgress,
+  RatingProgress,
+} from "../lib/data";
 import DashboardStatCards from "./DashboardStatCards";
+import type { WorkMode } from "./ModeSelect";
 
 interface Props {
   annotatorId: string;
+  mode: WorkMode;
   onSelect: (dataset: Dataset) => void;
+  onChangeMode?: () => void;
 }
 
-export default function DatasetSelector({ annotatorId, onSelect }: Props) {
+export default function DatasetSelector({
+  annotatorId,
+  mode,
+  onSelect,
+  onChangeMode,
+}: Props) {
   const [datasets, setDatasets] = useState<Dataset[]>([]);
   const [progress, setProgress] = useState<Record<string, DatasetProgress>>({});
+  const [ratingProgress, setRatingProgress] = useState<
+    Record<string, RatingProgress>
+  >({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
+      setLoading(true);
       try {
         const rows = await fetchDatasets();
         if (cancelled) return;
         setDatasets(rows);
-        const map: Record<string, DatasetProgress> = {};
-        await Promise.all(
-          rows.map(async (d) => {
-            try {
-              map[d.id] = await fetchDatasetProgress(
-                d.id,
-                d.total_samples,
-                annotatorId
-              );
-            } catch {
-              /* show row without progress */
-            }
-          })
-        );
-        if (!cancelled) setProgress(map);
+        if (mode === "rate") {
+          const map: Record<string, RatingProgress> = {};
+          await Promise.all(
+            rows.map(async (d) => {
+              try {
+                map[d.id] = await fetchRatingProgress(d.id, annotatorId);
+              } catch {
+                /* show row without progress */
+              }
+            })
+          );
+          if (!cancelled) setRatingProgress(map);
+        } else {
+          const map: Record<string, DatasetProgress> = {};
+          await Promise.all(
+            rows.map(async (d) => {
+              try {
+                map[d.id] = await fetchDatasetProgress(
+                  d.id,
+                  d.total_samples,
+                  annotatorId
+                );
+              } catch {
+                /* show row without progress */
+              }
+            })
+          );
+          if (!cancelled) setProgress(map);
+        }
       } catch (e: unknown) {
         if (!cancelled) {
           setError(e instanceof Error ? e.message : "Failed to load datasets.");
@@ -47,11 +79,23 @@ export default function DatasetSelector({ annotatorId, onSelect }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [annotatorId]);
+  }, [annotatorId, mode]);
 
   const summary = useMemo(() => {
     let submitted = 0;
     let remaining = 0;
+    if (mode === "rate") {
+      let totalSamples = 0;
+      for (const d of datasets) {
+        const p = ratingProgress[d.id];
+        if (p) {
+          totalSamples += p.total_rateable_samples;
+          submitted += p.submitted;
+          remaining += p.remaining + p.draft;
+        }
+      }
+      return { datasets: datasets.length, totalSamples, submitted, remaining };
+    }
     const totalSamples = datasets.reduce((sum, d) => sum + d.total_samples, 0);
     for (const d of datasets) {
       const p = progress[d.id];
@@ -63,7 +107,7 @@ export default function DatasetSelector({ annotatorId, onSelect }: Props) {
       }
     }
     return { datasets: datasets.length, totalSamples, submitted, remaining };
-  }, [datasets, progress]);
+  }, [datasets, progress, ratingProgress, mode]);
 
   if (loading) {
     return (
@@ -122,21 +166,47 @@ export default function DatasetSelector({ annotatorId, onSelect }: Props) {
         className="mb-8"
         stats={[
           { label: "Available datasets", value: summary.datasets },
-          { label: "Total samples", value: summary.totalSamples },
-          { label: "Your submitted", value: summary.submitted, tone: "emerald" },
+          {
+            label: mode === "rate" ? "Rateable questions" : "Total samples",
+            value: summary.totalSamples,
+          },
+          {
+            label: mode === "rate" ? "Your rated" : "Your submitted",
+            value: summary.submitted,
+            tone: "emerald",
+          },
           { label: "Your remaining", value: summary.remaining, tone: "indigo" },
         ]}
       />
 
       <div className="mb-8 rounded-2xl border border-indigo-200/70 bg-gradient-to-r from-indigo-600/90 via-indigo-500/85 to-teal-600/75 p-6 shadow-lg shadow-indigo-500/25 text-white">
-        <h2 className="text-2xl font-bold">Choose a dataset</h2>
-        <p className="text-indigo-100 text-sm mt-1">
-          Pick the collection you want to annotate today
-        </p>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-indigo-100">
+              {mode === "rate" ? "Rating" : "Annotation"}
+            </p>
+            <h2 className="mt-1 text-2xl font-bold">Choose a dataset</h2>
+            <p className="text-indigo-100 text-sm mt-1">
+              {mode === "rate"
+                ? "Pick a collection with submitted annotations to rate"
+                : "Pick the collection you want to annotate today"}
+            </p>
+          </div>
+          {onChangeMode && (
+            <button
+              type="button"
+              onClick={onChangeMode}
+              className="rounded-lg bg-white/15 px-3 py-1.5 text-xs font-semibold text-white ring-1 ring-white/25 transition hover:bg-white/25"
+            >
+              Change task
+            </button>
+          )}
+        </div>
       </div>
       <div className="space-y-3">
         {datasets.map((d, i) => {
           const p = progress[d.id];
+          const rp = ratingProgress[d.id];
           return (
             <button
               key={d.id}
@@ -160,15 +230,38 @@ export default function DatasetSelector({ annotatorId, onSelect }: Props) {
                     {d.name}
                   </p>
                   <p className="text-sm text-slate-500 mt-0.5">
-                    <span className="font-medium text-slate-600">{d.total_samples}</span> samples
-                    {p ? (
+                    {mode === "rate" ? (
+                      <>
+                        <span className="font-medium text-slate-600">
+                          {rp?.total_rateable_samples ?? "…"}
+                        </span>{" "}
+                        rateable questions
+                        {rp ? (
+                          <span className="text-slate-400">
+                            {" "}
+                            · {rp.remaining + rp.draft} remaining for you
+                          </span>
+                        ) : null}
+                      </>
+                    ) : (
+                      <>
+                        <span className="font-medium text-slate-600">
+                          {d.total_samples}
+                        </span>{" "}
+                        samples
+                        {p ? (
+                          <span className="text-slate-400">
+                            {" "}
+                            · {p.remaining} remaining for you
+                          </span>
+                        ) : null}
+                      </>
+                    )}
+                    {d.uploaded_filename ? (
                       <span className="text-slate-400">
                         {" "}
-                        · {p.remaining} remaining for you
+                        · {d.uploaded_filename}
                       </span>
-                    ) : null}
-                    {d.uploaded_filename ? (
-                      <span className="text-slate-400"> · {d.uploaded_filename}</span>
                     ) : null}
                   </p>
                 </div>

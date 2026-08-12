@@ -1,4 +1,11 @@
-import { supabase, Annotation, Dataset, Sample } from "./supabase";
+import {
+  supabase,
+  Annotation,
+  Dataset,
+  Rating,
+  Sample,
+} from "./supabase";
+import { isAiAnnotatorId } from "./ratingCriteria";
 
 export interface DatasetProgress {
   total_samples: number;
@@ -88,6 +95,152 @@ export async function fetchAnnotationsForAnnotator(
     .eq("annotator_id", annotatorId);
   if (error) throw error;
   return (data ?? []) as Annotation[];
+}
+
+/** Submitted human annotations eligible for rating (excludes AI annotators). */
+export function isRateableAnnotation(a: Annotation): boolean {
+  if (a.status !== "submitted") return false;
+  if (isAiAnnotatorId(a.annotator_id)) return false;
+  if (a.image_status !== "Yes") return false;
+  const desc = (a.objective_image_description ?? "").trim();
+  const summary = (a.final_multimodal_clinical_summary ?? "").trim();
+  return desc.length > 0 && summary.length > 0;
+}
+
+export async function fetchSubmittedAnnotationsForDataset(
+  datasetId: string
+): Promise<Annotation[]> {
+  const { data, error } = await supabase
+    .from("annotations")
+    .select("*")
+    .eq("dataset_id", datasetId)
+    .eq("status", "submitted")
+    .eq("image_status", "Yes");
+  if (error) throw error;
+  return ((data ?? []) as Annotation[]).filter(isRateableAnnotation);
+}
+
+export async function fetchRatingsForEvaluator(
+  datasetId: string,
+  evaluatorId: string
+): Promise<Rating[]> {
+  const { data, error } = await supabase
+    .from("ratings")
+    .select("*")
+    .eq("dataset_id", datasetId)
+    .eq("evaluator_id", evaluatorId);
+  if (error) throw error;
+  return (data ?? []) as Rating[];
+}
+
+export interface UpsertRatingInput {
+  sample_id: string;
+  dataset_id: string;
+  post_id: string;
+  evaluator_id: string;
+  rated_annotator_id: string;
+  desc_completeness: number | null;
+  desc_independence: number | null;
+  sum_informativeness: number | null;
+  sum_completeness: number | null;
+  sum_combination: number | null;
+  sum_fluency: number | null;
+  status: "draft" | "submitted";
+}
+
+export async function upsertRating(input: UpsertRatingInput): Promise<Rating> {
+  const { data, error } = await supabase
+    .from("ratings")
+    .upsert(input, {
+      onConflict: "sample_id,evaluator_id,rated_annotator_id",
+    })
+    .select()
+    .single();
+  if (error) throw error;
+  return data as Rating;
+}
+
+export async function upsertRatings(
+  inputs: UpsertRatingInput[]
+): Promise<Rating[]> {
+  if (inputs.length === 0) return [];
+  const { data, error } = await supabase
+    .from("ratings")
+    .upsert(inputs, {
+      onConflict: "sample_id,evaluator_id,rated_annotator_id",
+    })
+    .select();
+  if (error) throw error;
+  return (data ?? []) as Rating[];
+}
+
+export interface RatingProgress {
+  total_rateable_samples: number;
+  submitted: number;
+  draft: number;
+  remaining: number;
+}
+
+/**
+ * Progress for an evaluator: a sample counts as submitted when every
+ * rateable annotator on that sample has a submitted rating from this evaluator.
+ */
+export function computeRatingProgress(
+  rateableBySample: Record<string, Annotation[]>,
+  ratings: Rating[]
+): RatingProgress {
+  const sampleIds = Object.keys(rateableBySample).filter(
+    (id) => (rateableBySample[id]?.length ?? 0) > 0
+  );
+  const bySampleAnnotator = new Map<string, Rating>();
+  for (const r of ratings) {
+    bySampleAnnotator.set(`${r.sample_id}::${r.rated_annotator_id}`, r);
+  }
+
+  let submitted = 0;
+  let draft = 0;
+  for (const sampleId of sampleIds) {
+    const anns = rateableBySample[sampleId] ?? [];
+    let allSubmitted = true;
+    let anyDraft = false;
+    let anyRating = false;
+    for (const a of anns) {
+      const r = bySampleAnnotator.get(`${sampleId}::${a.annotator_id}`);
+      if (!r) {
+        allSubmitted = false;
+        continue;
+      }
+      anyRating = true;
+      if (r.status === "submitted") continue;
+      allSubmitted = false;
+      if (r.status === "draft") anyDraft = true;
+    }
+    if (allSubmitted && anns.length > 0) submitted += 1;
+    else if (anyDraft || anyRating) draft += 1;
+  }
+
+  const remaining = Math.max(0, sampleIds.length - submitted - draft);
+  return {
+    total_rateable_samples: sampleIds.length,
+    submitted,
+    draft,
+    remaining,
+  };
+}
+
+export async function fetchRatingProgress(
+  datasetId: string,
+  evaluatorId: string
+): Promise<RatingProgress> {
+  const [annotations, ratings] = await Promise.all([
+    fetchSubmittedAnnotationsForDataset(datasetId),
+    fetchRatingsForEvaluator(datasetId, evaluatorId),
+  ]);
+  const bySample: Record<string, Annotation[]> = {};
+  for (const a of annotations) {
+    (bySample[a.sample_id] ??= []).push(a);
+  }
+  return computeRatingProgress(bySample, ratings);
 }
 
 export interface UpsertAnnotationInput {

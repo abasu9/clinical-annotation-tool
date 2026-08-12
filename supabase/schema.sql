@@ -39,6 +39,25 @@ create table if not exists public.annotations (
   unique (sample_id, annotator_id)
 );
 
+create table if not exists public.ratings (
+  id uuid primary key default gen_random_uuid(),
+  sample_id uuid references public.samples(id) on delete cascade,
+  dataset_id uuid references public.datasets(id) on delete cascade,
+  post_id text not null,
+  evaluator_id text not null,
+  rated_annotator_id text not null,
+  desc_completeness integer check (desc_completeness is null or desc_completeness between 1 and 5),
+  desc_independence integer check (desc_independence is null or desc_independence between 1 and 5),
+  sum_informativeness integer check (sum_informativeness is null or sum_informativeness between 1 and 5),
+  sum_completeness integer check (sum_completeness is null or sum_completeness between 1 and 5),
+  sum_combination integer check (sum_combination is null or sum_combination between 1 and 5),
+  sum_fluency integer check (sum_fluency is null or sum_fluency between 1 and 5),
+  status text not null check (status in ('draft', 'submitted')),
+  created_at timestamp with time zone default now(),
+  updated_at timestamp with time zone default now(),
+  unique (sample_id, evaluator_id, rated_annotator_id)
+);
+
 -- ─── Indexes ──────────────────────────────────────────────────────────
 
 create index if not exists idx_samples_dataset
@@ -49,6 +68,14 @@ create index if not exists idx_annotations_annotator
   on public.annotations(annotator_id);
 create index if not exists idx_annotations_dataset_annotator
   on public.annotations(dataset_id, annotator_id);
+create index if not exists idx_ratings_dataset
+  on public.ratings(dataset_id);
+create index if not exists idx_ratings_evaluator
+  on public.ratings(evaluator_id);
+create index if not exists idx_ratings_dataset_evaluator
+  on public.ratings(dataset_id, evaluator_id);
+create index if not exists idx_ratings_sample
+  on public.ratings(sample_id);
 
 -- ─── updated_at trigger ──────────────────────────────────────────────
 
@@ -67,6 +94,11 @@ create trigger trg_annotations_set_updated_at
 before update on public.annotations
 for each row execute function public.set_updated_at();
 
+drop trigger if exists trg_ratings_set_updated_at on public.ratings;
+create trigger trg_ratings_set_updated_at
+before update on public.ratings
+for each row execute function public.set_updated_at();
+
 -- ─── PROTOTYPE: Row Level Security ───────────────────────────────────
 -- For the first prototype we DISABLE RLS so the anon key in the browser
 -- can read/write directly. This is fine for non-sensitive testing.
@@ -76,6 +108,7 @@ for each row execute function public.set_updated_at();
 alter table public.datasets    disable row level security;
 alter table public.samples     disable row level security;
 alter table public.annotations disable row level security;
+alter table public.ratings     disable row level security;
 
 -- ─── Optional production starting point (commented) ──────────────────
 -- alter table public.datasets    enable row level security;

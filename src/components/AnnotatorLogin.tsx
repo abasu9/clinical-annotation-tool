@@ -54,9 +54,12 @@ export default function AnnotatorLogin({ onLogin, onAdmin }: Props) {
         <h2 className="text-2xl font-bold tracking-tight text-slate-900">
           Start{" "}
           <span className="bg-gradient-to-r from-teal-500 via-indigo-500 to-violet-500 bg-clip-text text-transparent">
-            annotating
+            annotation or rating
           </span>
         </h2>
+        <p className="mt-2 text-sm text-slate-500">
+          After sign-in, choose Annotation or Rating.
+        </p>
 
         <form onSubmit={submit} className="mt-7 space-y-4">
           <div>

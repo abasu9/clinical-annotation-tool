@@ -53,6 +53,27 @@ export interface Annotation {
   updated_at: string;
 }
 
+export type RatingStatus = "draft" | "submitted";
+
+/** One evaluator’s Likert scores for one annotator’s submission on a sample. */
+export interface Rating {
+  id: string;
+  sample_id: string;
+  dataset_id: string;
+  post_id: string;
+  evaluator_id: string;
+  rated_annotator_id: string;
+  desc_completeness: number | null;
+  desc_independence: number | null;
+  sum_informativeness: number | null;
+  sum_completeness: number | null;
+  sum_combination: number | null;
+  sum_fluency: number | null;
+  status: RatingStatus;
+  created_at: string;
+  updated_at: string;
+}
+
 /** Stored in DB column `image_status` (legacy name). Values: Yes | No */
 export const REQUIRES_SUMMARIZATION_OPTIONS = ["Yes", "No"] as const;
 
