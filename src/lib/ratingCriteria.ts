@@ -71,7 +71,7 @@ export const SUMMARY_CRITERIA = [
   {
     key: "fluency" as const,
     label: "Fluency",
-    help: "Clear, grammatical, easy to read.",
+    help: "Clear, grammatical, easy to read and concise.",
   },
 ] as const;
 

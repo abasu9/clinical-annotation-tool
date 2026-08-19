@@ -395,12 +395,6 @@ export default function RatingPage({ evaluatorId, onBack }: Props) {
             </div>
           </div>
 
-          <div className="rounded-xl border border-indigo-200/70 bg-white/70 px-4 py-3 text-sm text-slate-600">
-            One scrollable page per question. For each annotator (c, sz, s, w,
-            …), rate their image description and summary together. Your own
-            submission is hidden.
-          </div>
-
           {errors.length > 0 && (
             <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
               <ul className="list-disc pl-5 space-y-1">
