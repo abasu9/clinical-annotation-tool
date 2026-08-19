@@ -112,7 +112,8 @@ const DEFAULT_PINS: Record<IaaCode, string> = {
 
 function loadPins(): Record<IaaCode, string> {
   const pins = { ...DEFAULT_PINS };
-  const raw = import.meta.env.VITE_IAA_PINS as string | undefined;
+  const raw = (import.meta as ImportMeta & { env?: Record<string, string> }).env
+    ?.VITE_IAA_PINS;
   if (!raw?.trim()) return pins;
   for (const part of raw.split(",")) {
     const [code, pin] = part.split(":").map((s) => s.trim());

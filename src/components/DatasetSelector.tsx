@@ -13,6 +13,7 @@ import {
   ratingDatasetInitials,
   ratingDatasetLabel,
 } from "../lib/anonymize";
+import { filterDatasetsForAnnotator } from "../lib/annotatorDatasets";
 
 interface Props {
   annotatorId: string;
@@ -42,11 +43,16 @@ export default function DatasetSelector({
       try {
         const rows = await fetchDatasets();
         if (cancelled) return;
-        setDatasets(rows);
+        // Annotation: only show this annotator's assigned dataset(s)
+        const visible =
+          mode === "annotate"
+            ? filterDatasetsForAnnotator(annotatorId, rows)
+            : rows;
+        setDatasets(visible);
         if (mode === "rate") {
           const map: Record<string, RatingProgress> = {};
           await Promise.all(
-            rows.map(async (d) => {
+            visible.map(async (d) => {
               try {
                 map[d.id] = await fetchRatingProgress(d.id, annotatorId);
               } catch {
@@ -58,7 +64,7 @@ export default function DatasetSelector({
         } else {
           const map: Record<string, DatasetProgress> = {};
           await Promise.all(
-            rows.map(async (d) => {
+            visible.map(async (d) => {
               try {
                 map[d.id] = await fetchDatasetProgress(
                   d.id,
@@ -155,9 +161,10 @@ export default function DatasetSelector({
           ]}
         />
         <div className="p-8 text-center rounded-2xl border border-dashed border-slate-300 bg-white/80">
-          <p className="text-slate-700 font-medium mb-1">No datasets available</p>
+          <p className="text-slate-700 font-medium mb-1">No datasets for you</p>
           <p className="text-slate-500 text-sm">
-            Ask your admin to import a dataset in the Admin Panel.
+            No annotation dataset is assigned to this login. Ask your admin if
+            this looks wrong.
           </p>
         </div>
       </div>
@@ -193,7 +200,7 @@ export default function DatasetSelector({
             <p className="text-indigo-100 text-sm mt-1">
               {mode === "rate"
                 ? "Pick a collection with submitted annotations to rate"
-                : "Pick the collection you want to annotate today"}
+                : "Only your assigned dataset(s) are listed"}
             </p>
           </div>
           {onChangeMode && (

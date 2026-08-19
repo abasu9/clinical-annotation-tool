@@ -396,9 +396,9 @@ export default function RatingPage({ evaluatorId, onBack }: Props) {
           </div>
 
           <div className="rounded-xl border border-indigo-200/70 bg-white/70 px-4 py-3 text-sm text-slate-600">
-            One scrollable page per question. Rate the other annotators only
-            (codes: nf, c, sz, s, w). Your own submission is hidden. Image
-            descriptions first, then summaries.
+            One scrollable page per question. For each annotator (c, sz, s, w,
+            …), rate their image description and summary together. Your own
+            submission is hidden.
           </div>
 
           {errors.length > 0 && (
@@ -411,23 +411,15 @@ export default function RatingPage({ evaluatorId, onBack }: Props) {
             </div>
           )}
 
-          <section className="flex flex-col gap-4">
-            <div className="rounded-xl border border-indigo-200/80 bg-indigo-50/80 px-4 py-3">
-              <h2 className="text-base font-bold text-slate-900">
-                Image descriptions
-              </h2>
-              <p className="mt-0.5 text-xs text-slate-600">
-                Completeness and Independence (1–5) for each annotator.
-              </p>
-            </div>
+          <div className="flex flex-col gap-5">
             {current?.annotations.map((a) => {
               const code = codeForAnnotatorId(a.annotator_id) as IaaCode;
               return (
                 <AnnotatorRatingCard
-                  key={`desc-${a.id}`}
+                  key={a.id}
                   code={code}
-                  section="description"
-                  text={a.objective_image_description ?? ""}
+                  imageDescription={a.objective_image_description ?? ""}
+                  summary={a.final_multimodal_clinical_summary ?? ""}
                   scores={
                     formByAnnotator[a.annotator_id] ?? EMPTY_ANNOTATOR_SCORES
                   }
@@ -436,32 +428,7 @@ export default function RatingPage({ evaluatorId, onBack }: Props) {
                 />
               );
             })}
-          </section>
-
-          <section className="flex flex-col gap-4">
-            <div className="rounded-xl border border-teal-200/80 bg-teal-50/80 px-4 py-3">
-              <h2 className="text-base font-bold text-slate-900">Summaries</h2>
-              <p className="mt-0.5 text-xs text-slate-600">
-                Informativeness, Completeness, Combination, Fluency (1–5).
-              </p>
-            </div>
-            {current?.annotations.map((a) => {
-              const code = codeForAnnotatorId(a.annotator_id) as IaaCode;
-              return (
-                <AnnotatorRatingCard
-                  key={`sum-${a.id}`}
-                  code={code}
-                  section="summary"
-                  text={a.final_multimodal_clinical_summary ?? ""}
-                  scores={
-                    formByAnnotator[a.annotator_id] ?? EMPTY_ANNOTATOR_SCORES
-                  }
-                  disabled={busy}
-                  onChange={(scores) => updateScores(a.annotator_id, scores)}
-                />
-              );
-            })}
-          </section>
+          </div>
         </div>
       </div>
 
