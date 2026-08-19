@@ -111,14 +111,16 @@ const DEFAULT_PINS: Record<IaaCode, string> = {
 };
 
 function loadPins(): Record<IaaCode, string> {
-  const pins = { ...DEFAULT_PINS };
-  const raw = (import.meta as ImportMeta & { env?: Record<string, string> }).env
-    ?.VITE_IAA_PINS;
+  const pins: Record<IaaCode, string> = { ...DEFAULT_PINS };
+  const viteEnv = (import.meta as ImportMeta & { env?: { VITE_IAA_PINS?: string } })
+    .env;
+  const raw = viteEnv?.VITE_IAA_PINS;
   if (!raw?.trim()) return pins;
   for (const part of raw.split(",")) {
-    const [code, pin] = part.split(":").map((s) => s.trim());
+    const pieces = part.split(":");
+    const code = pieces[0]?.trim() ?? "";
+    const pin = pieces[1]?.trim() ?? "";
     if (
-      code &&
       pin &&
       (code === "nf" ||
         code === "c" ||
