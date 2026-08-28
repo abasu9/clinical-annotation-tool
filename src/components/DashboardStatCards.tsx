@@ -1,6 +1,6 @@
 import React from "react";
 
-export type StatTone = "default" | "emerald" | "indigo" | "amber";
+export type StatTone = "default" | "emerald" | "indigo" | "amber" | "orange";
 
 export interface DashboardStat {
   label: string;
@@ -28,6 +28,11 @@ const TONE_STYLES: Record<StatTone, { box: string; label: string; value: string 
     box: "border-amber-200/70 bg-amber-50/40 ring-amber-100/60",
     label: "text-amber-800/80",
     value: "text-amber-800",
+  },
+  orange: {
+    box: "border-orange-200/70 bg-orange-50/40 ring-orange-100/60",
+    label: "text-orange-800/80",
+    value: "text-orange-800",
   },
 };
 

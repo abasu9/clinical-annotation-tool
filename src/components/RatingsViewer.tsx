@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { fetchRatingExportRows, RatingExportRow } from "../lib/data";
 import { downloadRatingsPerAnnotator } from "../lib/exportRatings";
+import { formatError } from "../lib/errors";
 interface Props {
   onClose: () => void;
 }
@@ -25,7 +26,7 @@ export default function RatingsViewer({ onClose }: Props) {
         if (!cancelled) setRows(data);
       } catch (e: unknown) {
         if (!cancelled) {
-          setError(e instanceof Error ? e.message : "Failed to load ratings.");
+          setError(formatError(e, "Failed to load ratings."));
         }
       } finally {
         if (!cancelled) setLoading(false);

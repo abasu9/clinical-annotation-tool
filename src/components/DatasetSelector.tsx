@@ -8,12 +8,16 @@ import {
   RatingProgress,
 } from "../lib/data";
 import DashboardStatCards from "./DashboardStatCards";
+import AnnotationBreakdown, {
+  sumAnnotationBreakdown,
+} from "./AnnotationBreakdown";
 import type { WorkMode } from "./ModeSelect";
 import {
   ratingDatasetInitials,
   ratingDatasetLabel,
 } from "../lib/anonymize";
 import { filterDatasetsForAnnotator } from "../lib/annotatorDatasets";
+import { formatError } from "../lib/errors";
 
 interface Props {
   annotatorId: string;
@@ -80,7 +84,7 @@ export default function DatasetSelector({
         }
       } catch (e: unknown) {
         if (!cancelled) {
-          setError(e instanceof Error ? e.message : "Failed to load datasets.");
+          setError(formatError(e, "Failed to load datasets."));
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -94,6 +98,10 @@ export default function DatasetSelector({
   const summary = useMemo(() => {
     let submitted = 0;
     let remaining = 0;
+    let yes = 0;
+    let no = 0;
+    let draft = 0;
+    let skipped = 0;
     if (mode === "rate") {
       let totalSamples = 0;
       for (const d of datasets) {
@@ -104,9 +112,23 @@ export default function DatasetSelector({
           remaining += p.remaining + p.draft;
         }
       }
-      return { datasets: datasets.length, totalSamples, submitted, remaining };
+      return {
+        datasets: datasets.length,
+        totalSamples,
+        submitted,
+        remaining,
+        yes,
+        no,
+        draft,
+        skipped,
+      };
     }
     const totalSamples = datasets.reduce((sum, d) => sum + d.total_samples, 0);
+    const breakdown = sumAnnotationBreakdown(progress);
+    yes = breakdown.yes;
+    no = breakdown.no;
+    draft = breakdown.draft;
+    skipped = breakdown.skipped;
     for (const d of datasets) {
       const p = progress[d.id];
       if (p) {
@@ -116,19 +138,32 @@ export default function DatasetSelector({
         remaining += d.total_samples;
       }
     }
-    return { datasets: datasets.length, totalSamples, submitted, remaining };
+    return {
+      datasets: datasets.length,
+      totalSamples,
+      submitted,
+      remaining,
+      yes,
+      no,
+      draft,
+      skipped,
+    };
   }, [datasets, progress, ratingProgress, mode]);
 
   if (loading) {
     return (
       <div className="mx-auto w-full max-w-2xl flex-1 px-4 py-8 sm:px-6">
-        <div className="mb-8 grid grid-cols-2 gap-3 sm:grid-cols-4">
-          {[1, 2, 3, 4].map((i) => (
-            <div
-              key={i}
-              className="h-[4.25rem] animate-pulse rounded-xl border border-indigo-100 bg-white/80"
-            />
-          ))}
+        <div
+          className={`mb-8 grid grid-cols-2 gap-3 ${mode === "annotate" ? "sm:grid-cols-4" : "sm:grid-cols-4"}`}
+        >
+          {(mode === "annotate" ? [1, 2, 3, 4, 5, 6, 7, 8] : [1, 2, 3, 4]).map(
+            (i) => (
+              <div
+                key={i}
+                className="h-[4.25rem] animate-pulse rounded-xl border border-indigo-100 bg-white/80"
+              />
+            )
+          )}
         </div>
         <div className="flex flex-col items-center justify-center py-16 gap-3">
           <div className="h-8 w-8 animate-spin rounded-full border-2 border-indigo-200 border-t-indigo-600" />
@@ -152,12 +187,21 @@ export default function DatasetSelector({
     return (
       <div className="mx-auto w-full max-w-2xl flex-1 px-4 py-8 sm:px-6">
         <DashboardStatCards
-          className="mb-8"
+          className="mb-3"
           stats={[
             { label: "Available datasets", value: 0 },
             { label: "Total samples", value: 0 },
             { label: "Your submitted", value: 0, tone: "emerald" },
             { label: "Your remaining", value: 0, tone: "indigo" },
+          ]}
+        />
+        <DashboardStatCards
+          className="mb-8"
+          stats={[
+            { label: "Yes", value: 0, tone: "emerald" },
+            { label: "No", value: 0, tone: "indigo" },
+            { label: "Drafted", value: 0, tone: "amber" },
+            { label: "Skipped", value: 0, tone: "orange" },
           ]}
         />
         <div className="p-8 text-center rounded-2xl border border-dashed border-slate-300 bg-white/80">
@@ -174,7 +218,7 @@ export default function DatasetSelector({
   return (
     <div className="mx-auto w-full max-w-2xl flex-1 px-4 py-8 pb-16 sm:px-6">
       <DashboardStatCards
-        className="mb-8"
+        className="mb-3"
         stats={[
           { label: "Available datasets", value: summary.datasets },
           {
@@ -189,6 +233,18 @@ export default function DatasetSelector({
           { label: "Your remaining", value: summary.remaining, tone: "indigo" },
         ]}
       />
+      {mode === "annotate" && (
+        <DashboardStatCards
+          className="mb-8"
+          stats={[
+            { label: "Yes", value: summary.yes, tone: "emerald" },
+            { label: "No", value: summary.no, tone: "indigo" },
+            { label: "Drafted", value: summary.draft, tone: "amber" },
+            { label: "Skipped", value: summary.skipped, tone: "orange" },
+          ]}
+        />
+      )}
+      {mode === "rate" && <div className="mb-8" />}
 
       <div className="mb-8 rounded-2xl border border-indigo-200/70 bg-gradient-to-r from-indigo-600/90 via-indigo-500/85 to-teal-600/75 p-6 shadow-lg shadow-indigo-500/25 text-white">
         <div className="flex flex-wrap items-start justify-between gap-3">
@@ -280,6 +336,9 @@ export default function DatasetSelector({
                       </>
                     )}
                   </p>
+                  {mode === "annotate" && (
+                    <AnnotationBreakdown progress={p} className="mt-2" />
+                  )}
                 </div>
                 <span className="shrink-0 rounded-lg bg-indigo-50 px-3 py-1.5 text-sm font-semibold text-indigo-700 group-hover:bg-indigo-600 group-hover:text-white transition">
                   Open

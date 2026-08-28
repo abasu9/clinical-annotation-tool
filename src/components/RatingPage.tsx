@@ -29,6 +29,7 @@ import AnnotatorRatingCard from "./AnnotatorRatingCard";
 import ImageViewer from "./ImageViewer";
 import PostPanel from "./PostPanel";
 import ProgressBar from "./ProgressBar";
+import { formatError } from "../lib/errors";
 import { contentCanvas, interiorStrip } from "../lib/ui";
 
 interface Props {
@@ -148,9 +149,7 @@ export default function RatingPage({ evaluatorId, onBack }: Props) {
         setIndex(firstIncomplete >= 0 ? firstIncomplete : 0);
       } catch (e: unknown) {
         if (!cancelled) {
-          setLoadError(
-            e instanceof Error ? e.message : "Failed to load rating data."
-          );
+          setLoadError(formatError(e, "Failed to load rating data."));
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -241,7 +240,7 @@ export default function RatingPage({ evaluatorId, onBack }: Props) {
       await persist("draft");
       showToast("Draft saved.");
     } catch (e: unknown) {
-      setErrors([e instanceof Error ? e.message : "Failed to save draft."]);
+      setErrors([formatError(e, "Failed to save draft.")]);
     } finally {
       setBusy(false);
     }
@@ -268,7 +267,7 @@ export default function RatingPage({ evaluatorId, onBack }: Props) {
       showToast("Ratings submitted.");
       if (index < questions.length - 1) moveTo(index + 1);
     } catch (e: unknown) {
-      setErrors([e instanceof Error ? e.message : "Failed to submit ratings."]);
+      setErrors([formatError(e, "Failed to submit ratings.")]);
     } finally {
       setBusy(false);
     }
@@ -282,6 +281,8 @@ export default function RatingPage({ evaluatorId, onBack }: Props) {
         skipped: 0,
         out_of_expertise: 0,
         remaining: progress.remaining,
+        yes: 0,
+        no: 0,
       }
     : null;
 

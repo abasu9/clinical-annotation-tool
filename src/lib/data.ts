@@ -21,6 +21,10 @@ export interface DatasetProgress {
   skipped: number;
   out_of_expertise: number;
   remaining: number;
+  /** Submitted with summarization = Yes */
+  yes: number;
+  /** Submitted with summarization = No */
+  no: number;
 }
 
 export async function fetchDatasets(): Promise<Dataset[]> {
@@ -39,21 +43,28 @@ export async function fetchDatasetProgress(
 ): Promise<DatasetProgress> {
   let q = supabase
     .from("annotations")
-    .select("status, sample_id")
+    .select("status, sample_id, image_status")
     .eq("dataset_id", datasetId);
   if (annotatorId) q = q.eq("annotator_id", annotatorId);
   const { data, error } = await q;
   if (error) throw error;
-  const rows = (data ?? []) as Pick<Annotation, "status" | "sample_id">[];
+  const rows = (data ?? []) as Pick<
+    Annotation,
+    "status" | "sample_id" | "image_status"
+  >[];
   let submitted = 0,
     draft = 0,
     skipped = 0,
-    out_of_expertise = 0;
+    out_of_expertise = 0,
+    yes = 0,
+    no = 0;
   const processedSampleIds = new Set<string>();
   for (const r of rows) {
     if (r.status === "submitted") {
       submitted += 1;
       processedSampleIds.add(r.sample_id);
+      if (r.image_status === "Yes") yes += 1;
+      else if (r.image_status === "No") no += 1;
     } else if (r.status === "draft") {
       draft += 1;
     } else if (r.status === "skipped") {
@@ -77,6 +88,8 @@ export async function fetchDatasetProgress(
     skipped,
     out_of_expertise,
     remaining,
+    yes,
+    no,
   };
 }
 
