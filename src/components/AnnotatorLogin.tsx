@@ -1,11 +1,10 @@
 import React, { useState } from "react";
 import { ANNOTATION_GUIDELINES_URL } from "../lib/guidelines";
 import {
-  isBlindDisplayCode,
-  resolveIaaCode,
-  unlockIaaPin,
-  verifyIaaPin,
-} from "../lib/iaaAnnotators";
+  unlockAnnotatorPin,
+  verifyAnnotatorLogin,
+} from "../lib/annotatorAuth";
+import { unlockIaaPin, resolveIaaCode } from "../lib/iaaAnnotators";
 import { authGradientButtonClass, authGradientButtonStyle } from "../lib/ui";
 import AuthFormCard from "./AuthFormCard";
 import AuthPageLayout from "./AuthPageLayout";
@@ -45,39 +44,36 @@ export default function AnnotatorLogin({ onLogin, onAdmin }: Props) {
   const [id, setId] = useState(loadStoredAnnotatorId());
   const [pin, setPin] = useState("");
   const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
 
-  const canContinue = id.trim().length > 0 && pin.trim().length > 0;
+  const canContinue = id.trim().length > 0 && pin.trim().length > 0 && !busy;
 
-  const submit = (e: React.FormEvent) => {
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const trimmed = id.trim();
-    const pinTrimmed = pin.trim();
-    if (!trimmed || !pinTrimmed) return;
+    if (!canContinue) return;
 
-    if (isBlindDisplayCode(trimmed)) {
-      setError(
-        "nf, c, sz, s, and w are display codes only. Log in with your real annotator ID + PIN."
-      );
-      return;
-    }
-
-    const code = resolveIaaCode(trimmed);
-    if (!code) {
-      setError(
-        "Unknown annotator ID. Use your assigned ID (e.g. dr naafila), not a blind code."
-      );
-      return;
-    }
-
-    if (!verifyIaaPin(code, pinTrimmed)) {
-      setError("Incorrect PIN.");
-      return;
-    }
-
+    setBusy(true);
     setError("");
-    unlockIaaPin(code);
-    saveStoredAnnotatorId(trimmed);
-    onLogin(trimmed);
+    try {
+      const result = await verifyAnnotatorLogin(id, pin);
+      if (!result.ok) {
+        setError(result.error);
+        return;
+      }
+
+      unlockAnnotatorPin(result.loginId);
+      const code = resolveIaaCode(result.loginId);
+      if (code) unlockIaaPin(code);
+
+      saveStoredAnnotatorId(result.loginId);
+      onLogin(result.loginId);
+    } catch (err: unknown) {
+      setError(
+        err instanceof Error ? err.message : "Login failed. Try again."
+      );
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
@@ -148,7 +144,7 @@ export default function AnnotatorLogin({ onLogin, onAdmin }: Props) {
             aria-disabled={!canContinue}
             className={authGradientButtonClass(canContinue)}
           >
-            Continue →
+            {busy ? "Signing in…" : "Continue →"}
           </button>
           <button
             type="button"

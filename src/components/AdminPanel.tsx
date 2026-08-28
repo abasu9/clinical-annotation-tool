@@ -3,16 +3,23 @@ import { isSupabaseConfigured, Dataset } from "../lib/supabase";
 import {
   DatasetProgress,
   deleteDataset,
+  fetchAnnotators,
   fetchDatasetProgress,
   fetchDatasets,
   fetchExportRows,
   fetchRatingExportRows,
+  updateDatasetAssignment,
 } from "../lib/data";
 import { importDatasetFile } from "../lib/importDataset";
+import {
+  labelForAnnotatorLogin,
+  type AnnotatorProfile,
+} from "../lib/annotatorDatasets";
 import { downloadFile, toCSV } from "../lib/csv";
 import { toJSONL } from "../lib/jsonl";
 import { downloadRatingsPerAnnotator } from "../lib/exportRatings";
 import AnnotationsViewer from "./AnnotationsViewer";
+import AnnotatorManager from "./AnnotatorManager";
 import RatingsViewer from "./RatingsViewer";
 import DashboardStatCards from "./DashboardStatCards";
 import { ANNOTATION_GUIDELINES_URL } from "../lib/guidelines";
@@ -25,8 +32,10 @@ interface Props {
 
 export default function AdminPanel({ onBack, backLabel = "Back" }: Props) {
   const [datasets, setDatasets] = useState<Dataset[]>([]);
+  const [annotators, setAnnotators] = useState<AnnotatorProfile[]>([]);
   const [progress, setProgress] = useState<Record<string, DatasetProgress>>({});
   const [name, setName] = useState("");
+  const [assignedAnnotatorId, setAssignedAnnotatorId] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [importing, setImporting] = useState(false);
   const [importStatus, setImportStatus] = useState("");
@@ -39,7 +48,12 @@ export default function AdminPanel({ onBack, backLabel = "Back" }: Props) {
   const load = useCallback(async () => {
     setError("");
     try {
-      const rows = await fetchDatasets();
+      const [rows, annotatorRows] = await Promise.all([
+        fetchDatasets(),
+        fetchAnnotators(),
+      ]);
+      setAnnotators(annotatorRows);
+      setAssignedAnnotatorId((prev) => prev || annotatorRows[0]?.login_id || "");
       setDatasets(rows);
       const map: Record<string, DatasetProgress> = {};
       await Promise.all(
@@ -95,6 +109,10 @@ export default function AdminPanel({ onBack, backLabel = "Back" }: Props) {
       setError("Choose a file — use Dataset/data_sample_100.prepared.jsonl or Browse to select it.");
       return;
     }
+    if (!assignedAnnotatorId) {
+      setError("Choose which annotator this dataset is assigned to.");
+      return;
+    }
     setImporting(true);
     setError("");
     setMessage("");
@@ -103,12 +121,14 @@ export default function AdminPanel({ onBack, backLabel = "Back" }: Props) {
       const res = await importDatasetFile({
         name,
         file,
+        assignedAnnotatorId,
         onProgress: (inserted, total) =>
           setImportStatus(`Inserting ${inserted} / ${total}…`),
       });
       setMessage(`Imported ${res.inserted} samples into dataset.`);
       setImportStatus("");
       setName("");
+      setAssignedAnnotatorId(annotators[0]?.login_id ?? "");
       setFile(null);
       await load();
     } catch (e: any) {
@@ -116,6 +136,26 @@ export default function AdminPanel({ onBack, backLabel = "Back" }: Props) {
       setImportStatus("");
     } finally {
       setImporting(false);
+    }
+  };
+
+  const handleAssignmentChange = async (
+    datasetId: string,
+    nextAssignedAnnotatorId: string
+  ) => {
+    if (!nextAssignedAnnotatorId) return;
+    setError("");
+    try {
+      const updated = await updateDatasetAssignment(
+        datasetId,
+        nextAssignedAnnotatorId
+      );
+      setDatasets((rows) =>
+        rows.map((d) => (d.id === datasetId ? updated : d))
+      );
+      setMessage(`Assigned "${updated.name}" to ${labelForAnnotatorLogin(updated.assigned_annotator_id, annotators)}.`);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Failed to update assignment.");
     }
   };
 
@@ -276,7 +316,22 @@ export default function AdminPanel({ onBack, backLabel = "Back" }: Props) {
         </p>
       </div>
 
-      <div className={`${adminCard} mb-6`}>
+      <AnnotatorManager
+        annotators={annotators}
+        onCreated={(a) => {
+          setAnnotators((rows) =>
+            [...rows, a].sort((x, y) =>
+              x.display_name.localeCompare(y.display_name)
+            )
+          );
+          setAssignedAnnotatorId(a.login_id);
+          setMessage(
+            `Added ${a.display_name} (login: ${a.login_id}). Share their PIN privately.`
+          );
+        }}
+      />
+
+      <div className={`${adminCard} mb-6 mt-6`}>
         <h3 className="text-lg font-semibold text-slate-800">
           Import dataset (.csv, .json, or .jsonl)
         </h3>
@@ -299,6 +354,30 @@ export default function AdminPanel({ onBack, backLabel = "Back" }: Props) {
             />
           </div>
           <div className="flex min-w-0 flex-col">
+            <label
+              htmlFor="admin-assigned-annotator"
+              className="text-sm font-medium leading-5 text-slate-600"
+            >
+              Assign to annotator
+            </label>
+            <select
+              id="admin-assigned-annotator"
+              value={assignedAnnotatorId}
+              onChange={(e) => setAssignedAnnotatorId(e.target.value)}
+              disabled={annotators.length === 0}
+              className={`${inputClass} mt-1.5 box-border h-11 py-0 disabled:opacity-50`}
+            >
+              {annotators.length === 0 ? (
+                <option value="">Add an annotator first</option>
+              ) : null}
+              {annotators.map((a) => (
+                <option key={a.id} value={a.login_id}>
+                  {a.display_name}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="flex min-w-0 flex-col sm:col-span-2">
             <span className="text-sm font-medium leading-5 text-slate-600">File upload</span>
             <div className="mt-1.5 box-border flex h-11 w-full items-center gap-2 rounded-xl border border-indigo-200/80 bg-white px-3 shadow-sm">
               <label
@@ -345,7 +424,14 @@ export default function AdminPanel({ onBack, backLabel = "Back" }: Props) {
             <button
               type="button"
               onClick={handleImport}
-              disabled={importing || !isSupabaseConfigured || !name.trim() || !file}
+              disabled={
+                importing ||
+                !isSupabaseConfigured ||
+                !name.trim() ||
+                !file ||
+                !assignedAnnotatorId ||
+                annotators.length === 0
+              }
               className={`${btnPrimary} w-full sm:w-auto sm:min-w-[8.5rem] disabled:opacity-50`}
             >
               {importing ? "Importing…" : "Import"}
@@ -364,6 +450,7 @@ export default function AdminPanel({ onBack, backLabel = "Back" }: Props) {
               <thead>
                 <tr className="border-b border-slate-200 text-left text-slate-600">
                   <th className="py-2 pr-3">Name</th>
+                  <th className="py-2 pr-3">Assigned to</th>
                   <th className="py-2 pr-3">File</th>
                   <th className="py-2 pr-3">Total</th>
                   <th className="py-2 pr-3">Submitted</th>
@@ -381,6 +468,32 @@ export default function AdminPanel({ onBack, backLabel = "Back" }: Props) {
                   return (
                     <tr key={d.id} className="border-b border-slate-100">
                       <td className="py-2 pr-3 font-medium">{d.name}</td>
+                      <td className="py-2 pr-3">
+                        <select
+                          value={d.assigned_annotator_id ?? ""}
+                          onChange={(e) =>
+                            handleAssignmentChange(d.id, e.target.value)
+                          }
+                          className={`${inputClass} min-w-[11rem] py-1.5 text-xs`}
+                          aria-label={`Assign ${d.name}`}
+                        >
+                          {!d.assigned_annotator_id ? (
+                            <option value="" disabled>
+                              Unassigned (name match)
+                            </option>
+                          ) : null}
+                          {annotators.map((a) => (
+                            <option key={a.id} value={a.login_id}>
+                              {a.display_name}
+                            </option>
+                          ))}
+                        </select>
+                        {!d.assigned_annotator_id ? (
+                          <p className="mt-1 text-[11px] text-slate-400">
+                            Legacy: matched by name
+                          </p>
+                        ) : null}
+                      </td>
                       <td className="py-2 pr-3 text-slate-500">
                         {d.uploaded_filename ?? "—"}
                       </td>

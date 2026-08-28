@@ -98,9 +98,10 @@ export interface ImportResult {
 export async function importDatasetFile(opts: {
   name: string;
   file: File;
+  assignedAnnotatorId: string;
   onProgress?: (inserted: number, total: number) => void;
 }): Promise<ImportResult> {
-  const { name, file, onProgress } = opts;
+  const { name, file, assignedAnnotatorId, onProgress } = opts;
   const samples = await parseDatasetFile(file);
   if (samples.length === 0) {
     throw new Error(
@@ -114,6 +115,7 @@ export async function importDatasetFile(opts: {
       name: name.trim(),
       uploaded_filename: file.name,
       total_samples: 0,
+      assigned_annotator_id: assignedAnnotatorId,
     })
     .select()
     .single();

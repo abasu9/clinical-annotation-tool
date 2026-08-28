@@ -16,6 +16,7 @@ export default function ModeSelect({
   onLogout,
 }: Props) {
   const code = resolveIaaCode(annotatorId);
+  const canRate = code != null;
 
   return (
     <div className="mx-auto w-full max-w-2xl flex-1 px-4 py-10 sm:px-6">
@@ -38,7 +39,7 @@ export default function ModeSelect({
         </p>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className={`grid gap-4 ${canRate ? "sm:grid-cols-2" : ""}`}>
         <button
           type="button"
           onClick={() => onSelect("annotate")}
@@ -62,6 +63,7 @@ export default function ModeSelect({
           </span>
         </button>
 
+        {canRate ? (
         <button
           type="button"
           onClick={() => onSelect("rate")}
@@ -81,6 +83,12 @@ export default function ModeSelect({
             Start rating →
           </span>
         </button>
+        ) : (
+          <p className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/80 p-6 text-sm text-slate-500">
+            Rating is only available for the five IAA pilot annotators. You can
+            annotate datasets assigned to you.
+          </p>
+        )}
       </div>
 
       <div className="mt-8 text-center">

@@ -14,8 +14,11 @@ import ModeSelect, { type WorkMode } from "./components/ModeSelect";
 import AdminPasswordGate from "./components/AdminPasswordGate";
 import { isAdminUnlocked, lockAdmin } from "./lib/adminGate";
 import {
+  clearAnnotatorPinUnlocks,
+  isAnnotatorPinUnlocked,
+} from "./lib/annotatorAuth";
+import {
   clearIaaPinUnlocks,
-  isIaaPinUnlocked,
   resolveIaaCode,
 } from "./lib/iaaAnnotators";
 
@@ -65,9 +68,7 @@ export default function App() {
   useEffect(() => {
     const stored = loadStoredAnnotatorId();
     if (!stored) return;
-    const code = resolveIaaCode(stored);
-    // Resume session only if PIN was unlocked in this browser tab
-    if (code && isIaaPinUnlocked(code)) {
+    if (isAnnotatorPinUnlocked(stored)) {
       setAnnotatorId(stored);
       clearStoredMode();
       setMode(null);
@@ -82,8 +83,7 @@ export default function App() {
       setView("login");
       return;
     }
-    const code = resolveIaaCode(annotatorId);
-    if (!code || !isIaaPinUnlocked(code)) {
+    if (!isAnnotatorPinUnlocked(annotatorId)) {
       clearStoredMode();
       setMode(null);
       setAnnotatorId("");
@@ -94,6 +94,7 @@ export default function App() {
   const handleLogout = () => {
     clearStoredAnnotatorId();
     clearStoredMode();
+    clearAnnotatorPinUnlocks();
     clearIaaPinUnlocks();
     setAnnotatorId("");
     setMode(null);
@@ -200,6 +201,7 @@ export default function App() {
   if (view === "rate") {
     const code = resolveIaaCode(annotatorId);
     if (!code) {
+      setView("mode");
       return null;
     }
     return (

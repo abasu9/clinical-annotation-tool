@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Dataset } from "../lib/supabase";
 import {
   DatasetProgress,
+  fetchAnnotators,
   fetchDatasetProgress,
   fetchDatasets,
   fetchRatingProgress,
@@ -16,7 +17,7 @@ import {
   ratingDatasetInitials,
   ratingDatasetLabel,
 } from "../lib/anonymize";
-import { filterDatasetsForAnnotator } from "../lib/annotatorDatasets";
+import { filterDatasetsForAnnotator, type AnnotatorProfile } from "../lib/annotatorDatasets";
 import { formatError } from "../lib/errors";
 
 interface Props {
@@ -33,6 +34,7 @@ export default function DatasetSelector({
   onChangeMode,
 }: Props) {
   const [datasets, setDatasets] = useState<Dataset[]>([]);
+  const [annotators, setAnnotators] = useState<AnnotatorProfile[]>([]);
   const [progress, setProgress] = useState<Record<string, DatasetProgress>>({});
   const [ratingProgress, setRatingProgress] = useState<
     Record<string, RatingProgress>
@@ -45,12 +47,16 @@ export default function DatasetSelector({
     (async () => {
       setLoading(true);
       try {
-        const rows = await fetchDatasets();
+        const [rows, annotatorRows] = await Promise.all([
+          fetchDatasets(),
+          fetchAnnotators(),
+        ]);
         if (cancelled) return;
+        setAnnotators(annotatorRows);
         // Annotation: only show this annotator's assigned dataset(s)
         const visible =
           mode === "annotate"
-            ? filterDatasetsForAnnotator(annotatorId, rows)
+            ? filterDatasetsForAnnotator(annotatorId, rows, annotatorRows)
             : rows;
         setDatasets(visible);
         if (mode === "rate") {

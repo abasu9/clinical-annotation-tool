@@ -1,10 +1,16 @@
 import {
   supabase,
   Annotation,
+  Annotator,
   Dataset,
   Rating,
   Sample,
 } from "./supabase";
+import {
+  annotatorForLogin,
+  type AnnotatorProfile,
+  suggestNameIncludes,
+} from "./annotatorDatasets";
 import { isAiAnnotatorId } from "./ratingCriteria";
 import {
   allIaaAnnotatorIds,
@@ -34,6 +40,80 @@ export async function fetchDatasets(): Promise<Dataset[]> {
     .order("created_at", { ascending: false });
   if (error) throw error;
   return (data ?? []) as Dataset[];
+}
+
+function toAnnotatorProfile(
+  a: Pick<
+    Annotator,
+    "id" | "login_id" | "display_name" | "login_aliases" | "name_includes"
+  >
+): AnnotatorProfile {
+  return {
+    id: a.id,
+    login_id: a.login_id,
+    display_name: a.display_name,
+    login_aliases: a.login_aliases ?? [],
+    name_includes: a.name_includes ?? [],
+  };
+}
+
+export async function fetchAnnotators(): Promise<AnnotatorProfile[]> {
+  const { data, error } = await supabase
+    .from("annotators")
+    .select("id, login_id, display_name, login_aliases, name_includes")
+    .order("display_name", { ascending: true });
+  if (error) throw error;
+  return ((data ?? []) as Annotator[]).map(toAnnotatorProfile);
+}
+
+export async function fetchAnnotatorForLogin(
+  loginInput: string
+): Promise<Annotator | null> {
+  const { data, error } = await supabase.from("annotators").select("*");
+  if (error) throw error;
+  const rows = (data ?? []) as Annotator[];
+  const profiles = rows.map(toAnnotatorProfile);
+  const match = annotatorForLogin(loginInput, profiles);
+  if (!match) return null;
+  return rows.find((r) => r.id === match.id) ?? null;
+}
+
+export async function createAnnotator(input: {
+  login_id: string;
+  display_name: string;
+  pin: string;
+  name_includes?: string[];
+}): Promise<AnnotatorProfile> {
+  const loginId = input.login_id.trim();
+  const displayName = input.display_name.trim();
+  const pin = input.pin.trim();
+  if (!loginId || !displayName || !pin) {
+    throw new Error("Display name, login ID, and PIN are required.");
+  }
+
+  const existing = await fetchAnnotatorForLogin(loginId);
+  if (existing) {
+    throw new Error(`Login ID "${loginId}" is already in use.`);
+  }
+
+  const nameIncludes =
+    input.name_includes && input.name_includes.length > 0
+      ? input.name_includes
+      : suggestNameIncludes(displayName);
+
+  const { data, error } = await supabase
+    .from("annotators")
+    .insert({
+      login_id: loginId,
+      display_name: displayName,
+      pin,
+      login_aliases: [],
+      name_includes: nameIncludes,
+    })
+    .select("id, login_id, display_name, login_aliases, name_includes")
+    .single();
+  if (error) throw error;
+  return toAnnotatorProfile(data as Annotator);
 }
 
 export async function fetchDatasetProgress(
@@ -490,6 +570,20 @@ export async function deleteDataset(datasetId: string): Promise<void> {
     .delete()
     .eq("id", datasetId);
   if (error) throw error;
+}
+
+export async function updateDatasetAssignment(
+  datasetId: string,
+  assignedAnnotatorId: string
+): Promise<Dataset> {
+  const { data, error } = await supabase
+    .from("datasets")
+    .update({ assigned_annotator_id: assignedAnnotatorId })
+    .eq("id", datasetId)
+    .select()
+    .single();
+  if (error) throw error;
+  return data as Dataset;
 }
 
 /* ── Export helpers ─────────────────────────────────────────────────── */

@@ -24,6 +24,17 @@ export interface Dataset {
   name: string;
   uploaded_filename: string | null;
   total_samples: number;
+  assigned_annotator_id: string | null;
+  created_at: string;
+}
+
+export interface Annotator {
+  id: string;
+  login_id: string;
+  display_name: string;
+  pin: string;
+  login_aliases: string[];
+  name_includes: string[];
   created_at: string;
 }
 

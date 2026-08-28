@@ -11,7 +11,19 @@ create table if not exists public.datasets (
   name text not null,
   uploaded_filename text,
   total_samples integer default 0,
+  assigned_annotator_id text,
   created_at timestamp with time zone default now()
+);
+
+create table if not exists public.annotators (
+  id uuid primary key default gen_random_uuid(),
+  login_id text not null,
+  display_name text not null,
+  pin text not null,
+  login_aliases jsonb not null default '[]'::jsonb,
+  name_includes jsonb not null default '[]'::jsonb,
+  created_at timestamp with time zone default now(),
+  unique (login_id)
 );
 
 create table if not exists public.samples (
@@ -62,6 +74,10 @@ create table if not exists public.ratings (
 
 create index if not exists idx_samples_dataset
   on public.samples(dataset_id);
+create index if not exists idx_datasets_assigned_annotator
+  on public.datasets(assigned_annotator_id);
+create index if not exists idx_annotators_login_id
+  on public.annotators(login_id);
 create index if not exists idx_annotations_dataset
   on public.annotations(dataset_id);
 create index if not exists idx_annotations_annotator
@@ -109,6 +125,7 @@ alter table public.datasets    disable row level security;
 alter table public.samples     disable row level security;
 alter table public.annotations disable row level security;
 alter table public.ratings     disable row level security;
+alter table public.annotators  disable row level security;
 
 -- ─── Optional production starting point (commented) ──────────────────
 -- alter table public.datasets    enable row level security;
