@@ -10,6 +10,7 @@ import {
   annotatorForLogin,
   type AnnotatorProfile,
   suggestNameIncludes,
+  type AnnotatorAdminProfile,
 } from "./annotatorDatasets";
 import { isAiAnnotatorId } from "./ratingCriteria";
 import {
@@ -57,6 +58,23 @@ function toAnnotatorProfile(
   };
 }
 
+function toAnnotatorAdminProfile(
+  a: Pick<
+    Annotator,
+    | "id"
+    | "login_id"
+    | "display_name"
+    | "pin"
+    | "login_aliases"
+    | "name_includes"
+  >
+): AnnotatorAdminProfile {
+  return {
+    ...toAnnotatorProfile(a),
+    pin: a.pin,
+  };
+}
+
 export async function fetchAnnotators(): Promise<AnnotatorProfile[]> {
   const { data, error } = await supabase
     .from("annotators")
@@ -64,6 +82,15 @@ export async function fetchAnnotators(): Promise<AnnotatorProfile[]> {
     .order("display_name", { ascending: true });
   if (error) throw error;
   return ((data ?? []) as Annotator[]).map(toAnnotatorProfile);
+}
+
+export async function fetchAnnotatorsAdmin(): Promise<AnnotatorAdminProfile[]> {
+  const { data, error } = await supabase
+    .from("annotators")
+    .select("id, login_id, display_name, pin, login_aliases, name_includes")
+    .order("display_name", { ascending: true });
+  if (error) throw error;
+  return ((data ?? []) as Annotator[]).map(toAnnotatorAdminProfile);
 }
 
 export async function fetchAnnotatorForLogin(
@@ -83,7 +110,7 @@ export async function createAnnotator(input: {
   display_name: string;
   pin: string;
   name_includes?: string[];
-}): Promise<AnnotatorProfile> {
+}): Promise<AnnotatorAdminProfile> {
   const loginId = input.login_id.trim();
   const displayName = input.display_name.trim();
   const pin = input.pin.trim();
@@ -110,10 +137,10 @@ export async function createAnnotator(input: {
       login_aliases: [],
       name_includes: nameIncludes,
     })
-    .select("id, login_id, display_name, login_aliases, name_includes")
+    .select("id, login_id, display_name, pin, login_aliases, name_includes")
     .single();
   if (error) throw error;
-  return toAnnotatorProfile(data as Annotator);
+  return toAnnotatorAdminProfile(data as Annotator);
 }
 
 export async function fetchDatasetProgress(

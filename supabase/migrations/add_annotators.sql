@@ -21,7 +21,7 @@ alter table public.annotators disable row level security;
 insert into public.annotators (login_id, display_name, pin, login_aliases, name_includes)
 values
   ('dr naafila', 'Dr Naafila', '194827', '[]'::jsonb, '["naafila"]'::jsonb),
-  ('dr aditya', 'Dr Chadda (login: dr aditya)', '385601', '["dr chadda", "chadda"]'::jsonb, '["chadda"]'::jsonb),
+  ('dr aditya', 'Dr Chadda', '385601', '["dr chadda", "chadda"]'::jsonb, '["chadda"]'::jsonb),
   ('Dr Sanchez', 'Dr Sanchez', '572913', '["dr sanchez", "sanchez"]'::jsonb, '["sanchez"]'::jsonb),
   ('Dr Saja', 'Dr Saja', '640158', '["dr saja", "saja"]'::jsonb, '["saja"]'::jsonb),
   ('Dr Wesley', 'Dr Wesley', '819374', '["dr wesley", "wesley"]'::jsonb, '["wesley"]'::jsonb),

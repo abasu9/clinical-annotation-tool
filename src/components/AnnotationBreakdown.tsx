@@ -14,6 +14,11 @@ export default function AnnotationBreakdown({ progress, className = "" }: Props)
     { label: "No", value: progress.no, dot: "bg-sky-500" },
     { label: "Drafted", value: progress.draft, dot: "bg-amber-500" },
     { label: "Skipped", value: progress.skipped, dot: "bg-orange-500" },
+    {
+      label: "Out of expertise",
+      value: progress.out_of_expertise,
+      dot: "bg-violet-500",
+    },
   ];
   return (
     <div
@@ -32,16 +37,21 @@ export default function AnnotationBreakdown({ progress, className = "" }: Props)
 
 export function sumAnnotationBreakdown(
   map: Record<string, DatasetProgress>
-): Pick<DatasetProgress, "yes" | "no" | "draft" | "skipped"> {
+): Pick<
+  DatasetProgress,
+  "yes" | "no" | "draft" | "skipped" | "out_of_expertise"
+> {
   let yes = 0;
   let no = 0;
   let draft = 0;
   let skipped = 0;
+  let out_of_expertise = 0;
   for (const p of Object.values(map)) {
     yes += p.yes;
     no += p.no;
     draft += p.draft;
     skipped += p.skipped;
+    out_of_expertise += p.out_of_expertise;
   }
-  return { yes, no, draft, skipped };
+  return { yes, no, draft, skipped, out_of_expertise };
 }

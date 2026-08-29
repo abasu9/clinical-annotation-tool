@@ -3,26 +3,28 @@ import { isSupabaseConfigured, Dataset } from "../lib/supabase";
 import {
   DatasetProgress,
   deleteDataset,
-  fetchAnnotators,
+  fetchAnnotatorsAdmin,
   fetchDatasetProgress,
   fetchDatasets,
   fetchExportRows,
-  fetchRatingExportRows,
   updateDatasetAssignment,
 } from "../lib/data";
 import { importDatasetFile } from "../lib/importDataset";
 import {
   labelForAnnotatorLogin,
+  cleanDisplayName,
   type AnnotatorProfile,
+  type AnnotatorAdminProfile,
 } from "../lib/annotatorDatasets";
 import { downloadFile, toCSV } from "../lib/csv";
 import { toJSONL } from "../lib/jsonl";
-import { downloadRatingsPerAnnotator } from "../lib/exportRatings";
 import AnnotationsViewer from "./AnnotationsViewer";
 import AnnotatorManager from "./AnnotatorManager";
 import RatingsViewer from "./RatingsViewer";
 import DashboardStatCards from "./DashboardStatCards";
-import { ANNOTATION_GUIDELINES_URL } from "../lib/guidelines";
+import AnnotationBreakdown, {
+  sumAnnotationBreakdown,
+} from "./AnnotationBreakdown";
 import { adminCard, btnPrimary, inputClass } from "../lib/ui";
 
 interface Props {
@@ -30,9 +32,31 @@ interface Props {
   backLabel?: string;
 }
 
+type AdminTab = "overview" | "datasets" | "annotators" | "ratings";
+
+const ADMIN_SECTIONS: {
+  id: AdminTab;
+  label: string;
+  description: string;
+}[] = [
+  { id: "overview", label: "Overview", description: "Progress at a glance" },
+  { id: "datasets", label: "Datasets", description: "Import and manage data" },
+  { id: "annotators", label: "Annotators", description: "Accounts and PINs" },
+  { id: "ratings", label: "Ratings", description: "IAA export and review" },
+];
+
+function datasetCompletionPct(
+  p: DatasetProgress | undefined,
+  total: number
+): number {
+  if (!p || total === 0) return 0;
+  const done = p.submitted + p.skipped + p.out_of_expertise;
+  return Math.round((done / total) * 100);
+}
+
 export default function AdminPanel({ onBack, backLabel = "Back" }: Props) {
   const [datasets, setDatasets] = useState<Dataset[]>([]);
-  const [annotators, setAnnotators] = useState<AnnotatorProfile[]>([]);
+  const [annotators, setAnnotators] = useState<AnnotatorAdminProfile[]>([]);
   const [progress, setProgress] = useState<Record<string, DatasetProgress>>({});
   const [name, setName] = useState("");
   const [assignedAnnotatorId, setAssignedAnnotatorId] = useState("");
@@ -43,14 +67,14 @@ export default function AdminPanel({ onBack, backLabel = "Back" }: Props) {
   const [error, setError] = useState("");
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [viewing, setViewing] = useState<Dataset | null>(null);
-  const [viewingRatings, setViewingRatings] = useState(false);
+  const [activeTab, setActiveTab] = useState<AdminTab>("overview");
 
   const load = useCallback(async () => {
     setError("");
     try {
       const [rows, annotatorRows] = await Promise.all([
         fetchDatasets(),
-        fetchAnnotators(),
+        fetchAnnotatorsAdmin(),
       ]);
       setAnnotators(annotatorRows);
       setAssignedAnnotatorId((prev) => prev || annotatorRows[0]?.login_id || "");
@@ -197,141 +221,346 @@ export default function AdminPanel({ onBack, backLabel = "Back" }: Props) {
     }
   };
 
-  const exportRatings = async (format: "csv" | "jsonl") => {
-    setError("");
-    try {
-      const rows = await fetchRatingExportRows();
-      if (rows.length === 0) {
-        setMessage("No ratings to export yet.");
-        return;
-      }
-      // One file per evaluator: iaa_ratings_nf.csv, iaa_ratings_c.csv, …
-      const { files, rows: n } = await downloadRatingsPerAnnotator(
-        rows,
-        format
-      );
-      setMessage(
-        `Exported ${n} rating rows as ${files} annotator file(s) (iaa_ratings_nf, _c, _sz, _s, _w).`
-      );
-    } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Ratings export failed.");
-    }
+  const breakdownTotals = useMemo(
+    () => sumAnnotationBreakdown(progress),
+    [progress]
+  );
+
+  const activeSection = ADMIN_SECTIONS.find((s) => s.id === activeTab);
+
+  const renderNavButton = (section: (typeof ADMIN_SECTIONS)[number], compact = false) => {
+    const selected = activeTab === section.id;
+    return (
+      <button
+        key={section.id}
+        type="button"
+        onClick={() => setActiveTab(section.id)}
+        className={
+          compact
+            ? `shrink-0 rounded-full px-4 py-2 text-sm font-semibold transition ${
+                selected
+                  ? "bg-indigo-600 text-white shadow-md shadow-indigo-500/25"
+                  : "bg-white text-slate-600 ring-1 ring-indigo-200 hover:bg-indigo-50"
+              }`
+            : `w-full rounded-lg px-3 py-2.5 text-left transition ${
+                selected
+                  ? "bg-gradient-to-r from-indigo-600 to-indigo-700 text-white shadow-md shadow-indigo-500/20"
+                  : "text-slate-700 hover:bg-indigo-50 hover:text-indigo-800"
+              }`
+        }
+      >
+        <span className="block text-sm font-semibold">{section.label}</span>
+        {!compact ? (
+          <span
+            className={`mt-0.5 block text-xs ${
+              selected ? "text-indigo-100" : "text-slate-500"
+            }`}
+          >
+            {section.description}
+          </span>
+        ) : null}
+      </button>
+    );
   };
 
-  return (
-    <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
-      <div className="mb-8 flex items-start justify-between gap-4 flex-wrap">
-        <div>
-          <h2 className="text-2xl font-bold text-slate-900">Admin Panel</h2>
-          <p className="text-sm text-slate-500 mt-1">
-            Import datasets, export annotations &amp; ratings, manage storage
-          </p>
-        </div>
+  const renderDatasetActions = (d: Dataset) => (
+    <div className="flex flex-wrap items-center gap-2">
+      <button
+        type="button"
+        onClick={() => setViewing(d)}
+        className="rounded-lg bg-indigo-50 px-2.5 py-1 text-xs font-semibold text-indigo-700 ring-1 ring-indigo-200 hover:bg-indigo-100"
+      >
+        View
+      </button>
+      <button
+        type="button"
+        onClick={() => exportAs(d.id, d.name, "csv")}
+        className="rounded-lg bg-slate-50 px-2.5 py-1 text-xs font-semibold text-slate-700 ring-1 ring-slate-200 hover:bg-slate-100"
+      >
+        CSV
+      </button>
+      <button
+        type="button"
+        onClick={() => exportAs(d.id, d.name, "jsonl")}
+        className="rounded-lg bg-slate-50 px-2.5 py-1 text-xs font-semibold text-slate-700 ring-1 ring-slate-200 hover:bg-slate-100"
+      >
+        JSONL
+      </button>
+      {confirmDelete === d.id ? (
+        <>
+          <button
+            type="button"
+            onClick={() => handleDelete(d.id)}
+            className="rounded-lg bg-red-50 px-2.5 py-1 text-xs font-semibold text-red-700 ring-1 ring-red-200 hover:bg-red-100"
+          >
+            Confirm delete
+          </button>
+          <button
+            type="button"
+            onClick={() => setConfirmDelete(null)}
+            className="text-xs font-medium text-slate-500 hover:underline"
+          >
+            Cancel
+          </button>
+        </>
+      ) : (
         <button
           type="button"
-          onClick={onBack}
-          className="rounded-xl px-4 py-2 text-sm font-medium text-indigo-700 ring-1 ring-indigo-200 bg-indigo-50 hover:bg-indigo-100 transition"
+          onClick={() => setConfirmDelete(d.id)}
+          className="rounded-lg bg-red-50 px-2.5 py-1 text-xs font-semibold text-red-600 ring-1 ring-red-200 hover:bg-red-100"
         >
-          ← {backLabel}
+          Delete
         </button>
-      </div>
+      )}
+    </div>
+  );
 
-      <div className={`${adminCard} mb-6`}>
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <h3 className="text-lg font-semibold text-slate-800">IAA ratings</h3>
-            <p className="mt-1 text-sm text-slate-500">
-              Export downloads one file per evaluator (
-              <span className="font-mono">iaa_ratings_nf.csv</span>,{" "}
-              <span className="font-mono">_c</span>,{" "}
-              <span className="font-mono">_sz</span>,{" "}
-              <span className="font-mono">_s</span>,{" "}
-              <span className="font-mono">_w</span>).
-            </p>
+  return (
+    <div className="flex min-h-[calc(100vh-4.25rem)] flex-col lg:flex-row">
+      <aside className="hidden lg:flex lg:w-64 lg:shrink-0 lg:flex-col lg:border-r lg:border-indigo-200/70 lg:bg-white/75 lg:backdrop-blur-sm">
+        <div className="border-b border-indigo-200/60 px-5 py-5">
+          <h2 className="text-lg font-bold text-slate-900">Admin Panel</h2>
+          <p className="mt-1 text-xs text-slate-500">
+            Import, export, and manage annotators
+          </p>
+        </div>
+        <nav className="flex-1 p-3" aria-label="Admin sections">
+          <ul className="space-y-1">
+            {ADMIN_SECTIONS.map((section) => (
+              <li key={section.id}>{renderNavButton(section)}</li>
+            ))}
+          </ul>
+        </nav>
+        <div className="border-t border-indigo-200/60 p-3">
+          <button
+            type="button"
+            onClick={onBack}
+            className="w-full rounded-xl px-4 py-2.5 text-sm font-medium text-indigo-700 ring-1 ring-indigo-200 bg-indigo-50 hover:bg-indigo-100 transition"
+          >
+            ← {backLabel}
+          </button>
+        </div>
+      </aside>
+
+      <div className="flex min-h-0 flex-1 flex-col">
+        <div className="border-b border-indigo-200/70 bg-white/90 px-4 py-3 lg:hidden">
+          <div className="mb-3 flex items-start justify-between gap-3">
+            <div>
+              <h2 className="text-lg font-bold text-slate-900">Admin Panel</h2>
+              <p className="text-xs text-slate-500">
+                {activeSection?.description ?? "Manage the annotation tool"}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={onBack}
+              className="shrink-0 rounded-xl px-3 py-1.5 text-xs font-medium text-indigo-700 ring-1 ring-indigo-200 bg-indigo-50 hover:bg-indigo-100 transition"
+            >
+              ← {backLabel}
+            </button>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setViewingRatings(true)}
-              className="rounded-lg bg-teal-600 px-3 py-1.5 text-sm font-semibold text-white shadow-sm hover:bg-teal-500"
-            >
-              View ratings
-            </button>
-            <button
-              type="button"
-              onClick={() => exportRatings("csv")}
-              className="rounded-lg bg-indigo-50 px-3 py-1.5 text-sm font-semibold text-indigo-700 ring-1 ring-indigo-200 hover:bg-indigo-100"
-              title="One CSV per evaluator (nf, c, sz, s, w)"
-            >
-              CSV per annotator
-            </button>
-            <button
-              type="button"
-              onClick={() => exportRatings("jsonl")}
-              className="rounded-lg bg-indigo-50 px-3 py-1.5 text-sm font-semibold text-indigo-700 ring-1 ring-indigo-200 hover:bg-indigo-100"
-              title="One JSONL per evaluator (nf, c, sz, s, w)"
-            >
-              JSONL per annotator
-            </button>
+          <div className="flex gap-2 overflow-x-auto pb-1">
+            {ADMIN_SECTIONS.map((section) => renderNavButton(section, true))}
           </div>
         </div>
-      </div>
 
-      <DashboardStatCards
-        className="mb-6"
-        stats={[
-          { label: "Total datasets", value: summary.datasets },
-          { label: "Total samples", value: summary.totalSamples },
-          { label: "Submitted", value: summary.submitted, tone: "emerald" },
-          { label: "Remaining", value: summary.remaining, tone: "indigo" },
-        ]}
-      />
+        <main className="min-h-0 flex-1 overflow-y-auto">
+          <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6">
+            <div className="mb-5 hidden lg:block">
+              <h3 className="text-2xl font-bold text-slate-900">
+                {activeSection?.label ?? "Admin"}
+              </h3>
+              <p className="mt-1 text-sm text-slate-500">
+                {activeSection?.description}
+              </p>
+            </div>
+          {!isSupabaseConfigured && (
+            <div className="mb-4 p-3 rounded bg-amber-50 border border-amber-200 text-amber-800 text-sm">
+              Supabase is not configured. Set <code>VITE_SUPABASE_URL</code> and{" "}
+              <code>VITE_SUPABASE_ANON_KEY</code> in <code>.env</code> and restart
+              the dev server.
+            </div>
+          )}
+          {message && (
+            <div className="mb-4 p-3 rounded bg-blue-50 border border-blue-200 text-blue-800 text-sm">
+              {message}
+            </div>
+          )}
+          {error && (
+            <div className="mb-4 p-3 rounded bg-red-50 border border-red-200 text-red-700 text-sm whitespace-pre-wrap">
+              {error}
+            </div>
+          )}
 
-      {!isSupabaseConfigured && (
-        <div className="mb-4 p-3 rounded bg-amber-50 border border-amber-200 text-amber-800 text-sm">
-          Supabase is not configured. Set <code>VITE_SUPABASE_URL</code> and{" "}
-          <code>VITE_SUPABASE_ANON_KEY</code> in <code>.env</code> and restart the
-          dev server.
-        </div>
-      )}
-      {message && (
-        <div className="mb-4 p-3 rounded bg-blue-50 border border-blue-200 text-blue-800 text-sm">
-          {message}
-        </div>
-      )}
-      {error && (
-        <div className="mb-4 p-3 rounded bg-red-50 border border-red-200 text-red-700 text-sm whitespace-pre-wrap">
-          {error}
-        </div>
-      )}
+          {activeTab === "overview" && (
+            <>
+              <DashboardStatCards
+                className="mb-3"
+                stats={[
+                  { label: "Total datasets", value: summary.datasets },
+                  { label: "Total samples", value: summary.totalSamples },
+                  { label: "Submitted", value: summary.submitted, tone: "emerald" },
+                  { label: "Remaining", value: summary.remaining, tone: "indigo" },
+                ]}
+              />
 
-      <div className="mb-6 flex gap-3 rounded-xl border border-sky-200/80 bg-sky-50/90 px-4 py-3 text-sm text-slate-700 ring-1 ring-sky-100/80">
-        <span className="shrink-0 text-sky-600" aria-hidden>
-          ℹ
-        </span>
-        <p>
-          Images are loaded from public or signed Cloudflare R2 URLs. Dataset files
-          should contain <code className="rounded bg-white/80 px-1 text-xs">image_urls</code> or{" "}
-          <code className="rounded bg-white/80 px-1 text-xs">image_paths</code>.
-        </p>
-      </div>
+              <div className={`${adminCard} mb-6 px-4 py-3`}>
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  All datasets
+                </p>
+                <AnnotationBreakdown
+                  progress={{
+                    total_samples: summary.totalSamples,
+                    submitted: summary.submitted,
+                    draft: breakdownTotals.draft,
+                    skipped: breakdownTotals.skipped,
+                    out_of_expertise: breakdownTotals.out_of_expertise,
+                    remaining: summary.remaining,
+                    yes: breakdownTotals.yes,
+                    no: breakdownTotals.no,
+                  }}
+                  className="mt-2"
+                />
+              </div>
 
-      <AnnotatorManager
-        annotators={annotators}
-        onCreated={(a) => {
-          setAnnotators((rows) =>
-            [...rows, a].sort((x, y) =>
-              x.display_name.localeCompare(y.display_name)
-            )
-          );
-          setAssignedAnnotatorId(a.login_id);
-          setMessage(
-            `Added ${a.display_name} (login: ${a.login_id}). Share their PIN privately.`
-          );
-        }}
-      />
+              <div className={`${adminCard} mb-6`}>
+                <h4 className="text-lg font-semibold text-slate-800">
+                  Dataset progress
+                </h4>
+                <p className="mt-1 text-sm text-slate-500">
+                  Completion across all imported datasets.
+                </p>
+                {datasets.length === 0 ? (
+                  <p className="mt-4 text-sm text-slate-500">
+                    No datasets imported yet.
+                  </p>
+                ) : (
+                  <ul className="mt-4 space-y-3">
+                    {datasets.map((d) => {
+                      const p = progress[d.id];
+                      const pct = datasetCompletionPct(p, d.total_samples);
+                      return (
+                        <li
+                          key={d.id}
+                          className="rounded-xl border border-indigo-100 bg-white/80 px-4 py-3"
+                        >
+                          <div className="flex flex-wrap items-start justify-between gap-2">
+                            <div className="min-w-0">
+                              <p className="font-semibold text-slate-900">
+                                {d.name}
+                              </p>
+                              <p className="mt-0.5 text-xs text-slate-500">
+                                {labelForAnnotatorLogin(
+                                  d.assigned_annotator_id,
+                                  annotators
+                                )}{" "}
+                                · {d.total_samples} samples
+                              </p>
+                            </div>
+                            <span className="text-sm font-semibold tabular-nums text-indigo-700">
+                              {pct}%
+                            </span>
+                          </div>
+                          <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-100 ring-1 ring-slate-200">
+                            <div className="flex h-full">
+                              {p && d.total_samples > 0 ? (
+                                <>
+                                  <div
+                                    className="h-full bg-emerald-500"
+                                    style={{
+                                      width: `${(p.yes / d.total_samples) * 100}%`,
+                                    }}
+                                    title={`Yes: ${p.yes}`}
+                                  />
+                                  <div
+                                    className="h-full bg-sky-500"
+                                    style={{
+                                      width: `${(p.no / d.total_samples) * 100}%`,
+                                    }}
+                                    title={`No: ${p.no}`}
+                                  />
+                                  <div
+                                    className="h-full bg-amber-400"
+                                    style={{
+                                      width: `${(p.draft / d.total_samples) * 100}%`,
+                                    }}
+                                    title={`Drafted: ${p.draft}`}
+                                  />
+                                  <div
+                                    className="h-full bg-orange-400"
+                                    style={{
+                                      width: `${(p.skipped / d.total_samples) * 100}%`,
+                                    }}
+                                    title={`Skipped: ${p.skipped}`}
+                                  />
+                                  <div
+                                    className="h-full bg-violet-500"
+                                    style={{
+                                      width: `${
+                                        (p.out_of_expertise / d.total_samples) * 100
+                                      }%`,
+                                    }}
+                                    title={`Out of expertise: ${p.out_of_expertise}`}
+                                  />
+                                </>
+                              ) : (
+                                <div
+                                  className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 transition-all"
+                                  style={{ width: `${pct}%` }}
+                                />
+                              )}
+                            </div>
+                          </div>
+                          <AnnotationBreakdown progress={p} className="mt-2" />
+                          <p className="mt-1.5 text-xs text-slate-500">
+                            Remaining {p?.remaining ?? d.total_samples} · Submitted{" "}
+                            {p?.submitted ?? 0}
+                          </p>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </div>
 
-      <div className={`${adminCard} mb-6 mt-6`}>
+              <div className="flex gap-3 rounded-xl border border-sky-200/80 bg-sky-50/90 px-4 py-3 text-sm text-slate-700 ring-1 ring-sky-100/80">
+                <span className="shrink-0 text-sky-600" aria-hidden>
+                  ℹ
+                </span>
+                <p>
+                  Images are loaded from public or signed Cloudflare R2 URLs.
+                  Dataset files should contain{" "}
+                  <code className="rounded bg-white/80 px-1 text-xs">image_urls</code>{" "}
+                  or{" "}
+                  <code className="rounded bg-white/80 px-1 text-xs">image_paths</code>
+                  .
+                </p>
+              </div>
+            </>
+          )}
+
+          {activeTab === "annotators" && (
+            <AnnotatorManager
+                annotators={annotators}
+                onCreated={(a) => {
+                  setAnnotators((rows) =>
+                    [...rows, a].sort((x, y) =>
+                      x.display_name.localeCompare(y.display_name)
+                    )
+                  );
+                  setAssignedAnnotatorId(a.login_id);
+                  setMessage(
+                    `Added ${cleanDisplayName(a.display_name)}. Share their login ID and PIN privately.`
+                  );
+              }}
+            />
+          )}
+
+          {activeTab === "ratings" && <RatingsViewer variant="embedded" />}
+
+          {activeTab === "datasets" && (
+            <>
+              <div className={`${adminCard} mb-6`}>
         <h3 className="text-lg font-semibold text-slate-800">
           Import dataset (.csv, .json, or .jsonl)
         </h3>
@@ -372,7 +601,7 @@ export default function AdminPanel({ onBack, backLabel = "Back" }: Props) {
               ) : null}
               {annotators.map((a) => (
                 <option key={a.id} value={a.login_id}>
-                  {a.display_name}
+                  {cleanDisplayName(a.display_name)}
                 </option>
               ))}
             </select>
@@ -440,132 +669,162 @@ export default function AdminPanel({ onBack, backLabel = "Back" }: Props) {
         </div>
       </div>
 
-      <div className={adminCard}>
-        <h3 className="text-lg font-semibold mb-3 text-slate-800">Datasets</h3>
+      <div className={`${adminCard} mb-6`}>
+        <h3 className="text-lg font-semibold mb-3 text-slate-800">Imported datasets</h3>
         {datasets.length === 0 ? (
           <p className="text-slate-500 text-sm">No datasets imported yet.</p>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-slate-200 text-left text-slate-600">
-                  <th className="py-2 pr-3">Name</th>
-                  <th className="py-2 pr-3">Assigned to</th>
-                  <th className="py-2 pr-3">File</th>
-                  <th className="py-2 pr-3">Total</th>
-                  <th className="py-2 pr-3">Submitted</th>
-                  <th className="py-2 pr-3">Draft</th>
-                  <th className="py-2 pr-3">Skipped</th>
-                  <th className="py-2 pr-3">Out of expertise</th>
-                  <th className="py-2 pr-3">Remaining</th>
-                  <th className="py-2 pr-3">View / Download</th>
-                  <th className="py-2 pr-3"></th>
-                </tr>
-              </thead>
-              <tbody>
-                {datasets.map((d) => {
-                  const p = progress[d.id];
-                  return (
-                    <tr key={d.id} className="border-b border-slate-100">
-                      <td className="py-2 pr-3 font-medium">{d.name}</td>
-                      <td className="py-2 pr-3">
-                        <select
-                          value={d.assigned_annotator_id ?? ""}
-                          onChange={(e) =>
-                            handleAssignmentChange(d.id, e.target.value)
-                          }
-                          className={`${inputClass} min-w-[11rem] py-1.5 text-xs`}
-                          aria-label={`Assign ${d.name}`}
-                        >
-                          {!d.assigned_annotator_id ? (
-                            <option value="" disabled>
-                              Unassigned (name match)
-                            </option>
-                          ) : null}
-                          {annotators.map((a) => (
-                            <option key={a.id} value={a.login_id}>
-                              {a.display_name}
-                            </option>
-                          ))}
-                        </select>
+          <>
+            <div className="hidden overflow-x-auto lg:block">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-slate-200 text-left text-slate-600">
+                    <th className="py-2 pr-3">Name</th>
+                    <th className="py-2 pr-3">Assigned to</th>
+                    <th className="py-2 pr-3">File</th>
+                    <th className="py-2 pr-3">Total</th>
+                    <th className="py-2 pr-3">Submitted</th>
+                    <th className="py-2 pr-3">Draft</th>
+                    <th className="py-2 pr-3">Skipped</th>
+                    <th className="py-2 pr-3">Out of expertise</th>
+                    <th className="py-2 pr-3">Remaining</th>
+                    <th className="py-2 pr-3">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {datasets.map((d) => {
+                    const p = progress[d.id];
+                    return (
+                      <tr key={d.id} className="border-b border-slate-100">
+                        <td className="py-2 pr-3 font-medium">{d.name}</td>
+                        <td className="py-2 pr-3">
+                          <select
+                            value={d.assigned_annotator_id ?? ""}
+                            onChange={(e) =>
+                              handleAssignmentChange(d.id, e.target.value)
+                            }
+                            className={`${inputClass} min-w-[11rem] py-1.5 text-xs`}
+                            aria-label={`Assign ${d.name}`}
+                          >
+                            {!d.assigned_annotator_id ? (
+                              <option value="" disabled>
+                                Unassigned (name match)
+                              </option>
+                            ) : null}
+                            {annotators.map((a) => (
+                              <option key={a.id} value={a.login_id}>
+                                {cleanDisplayName(a.display_name)}
+                              </option>
+                            ))}
+                          </select>
+                        </td>
+                        <td className="py-2 pr-3 text-slate-500">
+                          {d.uploaded_filename ?? "—"}
+                        </td>
+                        <td className="py-2 pr-3">{d.total_samples}</td>
+                        <td className="py-2 pr-3 text-emerald-700">
+                          {p?.submitted ?? "—"}
+                        </td>
+                        <td className="py-2 pr-3 text-amber-700">
+                          {p?.draft ?? "—"}
+                        </td>
+                        <td className="py-2 pr-3 text-orange-700">
+                          {p?.skipped ?? "—"}
+                        </td>
+                        <td className="py-2 pr-3 text-violet-700">
+                          {p?.out_of_expertise ?? "—"}
+                        </td>
+                        <td className="py-2 pr-3">{p?.remaining ?? "—"}</td>
+                        <td className="py-2 pr-3">{renderDatasetActions(d)}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="space-y-3 lg:hidden">
+              {datasets.map((d) => {
+                const p = progress[d.id];
+                const pct = datasetCompletionPct(p, d.total_samples);
+                return (
+                  <div
+                    key={d.id}
+                    className="rounded-xl border border-indigo-100 bg-white/80 p-4"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="font-semibold text-slate-900">{d.name}</p>
+                        <p className="mt-0.5 text-xs text-slate-500">
+                          {d.uploaded_filename ?? "No file name"}
+                        </p>
+                      </div>
+                      <span className="shrink-0 text-sm font-semibold text-indigo-700">
+                        {pct}%
+                      </span>
+                    </div>
+                    <div className="mt-3">
+                      <label className="text-xs font-medium text-slate-600">
+                        Assigned to
+                      </label>
+                      <select
+                        value={d.assigned_annotator_id ?? ""}
+                        onChange={(e) =>
+                          handleAssignmentChange(d.id, e.target.value)
+                        }
+                        className={`${inputClass} mt-1 py-2 text-sm`}
+                        aria-label={`Assign ${d.name}`}
+                      >
                         {!d.assigned_annotator_id ? (
-                          <p className="mt-1 text-[11px] text-slate-400">
-                            Legacy: matched by name
-                          </p>
+                          <option value="" disabled>
+                            Unassigned (name match)
+                          </option>
                         ) : null}
-                      </td>
-                      <td className="py-2 pr-3 text-slate-500">
-                        {d.uploaded_filename ?? "—"}
-                      </td>
-                      <td className="py-2 pr-3">{d.total_samples}</td>
-                      <td className="py-2 pr-3 text-emerald-700">
-                        {p?.submitted ?? "—"}
-                      </td>
-                      <td className="py-2 pr-3 text-amber-700">
-                        {p?.draft ?? "—"}
-                      </td>
-                      <td className="py-2 pr-3 text-orange-700">
-                        {p?.skipped ?? "—"}
-                      </td>
-                      <td className="py-2 pr-3 text-violet-700">
-                        {p?.out_of_expertise ?? "—"}
-                      </td>
-                      <td className="py-2 pr-3">{p?.remaining ?? "—"}</td>
-                      <td className="py-2 pr-3">
-                        <div className="flex gap-3 items-center">
-                          <button
-                            onClick={() => setViewing(d)}
-                            className="text-indigo-700 font-medium hover:underline"
-                          >
-                            View
-                          </button>
-                          <span className="text-slate-300">·</span>
-                          <button
-                            onClick={() => exportAs(d.id, d.name, "csv")}
-                            className="text-indigo-600 hover:underline"
-                          >
-                            CSV
-                          </button>
-                          <button
-                            onClick={() => exportAs(d.id, d.name, "jsonl")}
-                            className="text-indigo-600 hover:underline"
-                          >
-                            JSONL
-                          </button>
-                        </div>
-                      </td>
-                      <td className="py-2 pr-3">
-                        {confirmDelete === d.id ? (
-                          <div className="flex gap-2">
-                            <button
-                              onClick={() => handleDelete(d.id)}
-                              className="text-red-600 font-medium hover:underline"
-                            >
-                              Confirm
-                            </button>
-                            <button
-                              onClick={() => setConfirmDelete(null)}
-                              className="text-slate-500 hover:underline"
-                            >
-                              Cancel
-                            </button>
-                          </div>
-                        ) : (
-                          <button
-                            onClick={() => setConfirmDelete(d.id)}
-                            className="text-red-500 hover:underline"
-                          >
-                            Delete
-                          </button>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                        {annotators.map((a) => (
+                          <option key={a.id} value={a.login_id}>
+                            {cleanDisplayName(a.display_name)}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="mt-3 grid grid-cols-2 gap-2 text-xs sm:grid-cols-4">
+                      <div className="rounded-lg bg-slate-50 px-2 py-1.5">
+                        <p className="text-slate-500">Total</p>
+                        <p className="font-semibold text-slate-900">
+                          {d.total_samples}
+                        </p>
+                      </div>
+                      <div className="rounded-lg bg-emerald-50 px-2 py-1.5">
+                        <p className="text-emerald-700">Submitted</p>
+                        <p className="font-semibold text-emerald-800">
+                          {p?.submitted ?? 0}
+                        </p>
+                      </div>
+                      <div className="rounded-lg bg-amber-50 px-2 py-1.5">
+                        <p className="text-amber-700">Draft</p>
+                        <p className="font-semibold text-amber-800">
+                          {p?.draft ?? 0}
+                        </p>
+                      </div>
+                      <div className="rounded-lg bg-indigo-50 px-2 py-1.5">
+                        <p className="text-indigo-700">Remaining</p>
+                        <p className="font-semibold text-indigo-900">
+                          {p?.remaining ?? d.total_samples}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="mt-3">{renderDatasetActions(d)}</div>
+                  </div>
+                );
+              })}
+            </div>
+          </>
         )}
+      </div>
+            </>
+          )}
+          </div>
+        </main>
       </div>
 
       {viewing && (
@@ -575,10 +834,6 @@ export default function AdminPanel({ onBack, backLabel = "Back" }: Props) {
           totalSamples={viewing.total_samples}
           onClose={() => setViewing(null)}
         />
-      )}
-
-      {viewingRatings && (
-        <RatingsViewer onClose={() => setViewingRatings(false)} />
       )}
     </div>
   );

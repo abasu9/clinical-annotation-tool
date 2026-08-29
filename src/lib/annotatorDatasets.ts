@@ -9,6 +9,11 @@ export interface AnnotatorProfile {
   name_includes: string[];
 }
 
+/** Admin-only annotator row including PIN. */
+export interface AnnotatorAdminProfile extends AnnotatorProfile {
+  pin: string;
+}
+
 function normalizeLogin(loginId: string): string {
   return loginId.trim().toLowerCase();
 }
@@ -25,13 +30,17 @@ export function annotatorForLogin(
   );
 }
 
+export function cleanDisplayName(displayName: string): string {
+  return displayName.replace(/\s*\(login:\s*[^)]+\)\s*$/i, "").trim();
+}
+
 export function labelForAnnotatorLogin(
   loginId: string | null | undefined,
   annotators: AnnotatorProfile[] = []
 ): string {
   if (!loginId) return "—";
   const match = annotatorForLogin(loginId, annotators);
-  return match?.display_name ?? loginId;
+  return match ? cleanDisplayName(match.display_name) : loginId;
 }
 
 /** True when a logged-in annotator may open this dataset. */

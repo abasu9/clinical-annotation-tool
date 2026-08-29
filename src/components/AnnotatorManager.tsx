@@ -1,11 +1,15 @@
 import React, { useState } from "react";
 import { createAnnotator } from "../lib/data";
-import { suggestNameIncludes, type AnnotatorProfile } from "../lib/annotatorDatasets";
+import {
+  suggestNameIncludes,
+  cleanDisplayName,
+  type AnnotatorAdminProfile,
+} from "../lib/annotatorDatasets";
 import { adminCard, btnPrimary, inputClass } from "../lib/ui";
 
 interface Props {
-  annotators: AnnotatorProfile[];
-  onCreated: (annotator: AnnotatorProfile) => void;
+  annotators: AnnotatorAdminProfile[];
+  onCreated: (annotator: AnnotatorAdminProfile) => void;
 }
 
 function randomPin(): string {
@@ -55,26 +59,55 @@ export default function AnnotatorManager({ annotators, onCreated }: Props) {
       </p>
 
       {annotators.length > 0 ? (
-        <div className="mt-4 overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-slate-200 text-left text-slate-600">
-                <th className="py-2 pr-3">Name</th>
-                <th className="py-2 pr-3">Login ID</th>
-              </tr>
-            </thead>
-            <tbody>
-              {annotators.map((a) => (
-                <tr key={a.id} className="border-b border-slate-100">
-                  <td className="py-2 pr-3 font-medium">{a.display_name}</td>
-                  <td className="py-2 pr-3 font-mono text-slate-700">
-                    {a.login_id}
-                  </td>
+        <>
+          <div className="mt-4 hidden overflow-x-auto md:block">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-slate-200 text-left text-slate-600">
+                  <th className="py-2 pr-3">Name</th>
+                  <th className="py-2 pr-3">Login ID</th>
+                  <th className="py-2 pr-3">PIN</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {annotators.map((a) => (
+                  <tr key={a.id} className="border-b border-slate-100">
+                    <td className="py-2 pr-3 font-medium">
+                      {cleanDisplayName(a.display_name)}
+                    </td>
+                    <td className="py-2 pr-3 font-mono text-slate-700">
+                      {a.login_id}
+                    </td>
+                    <td className="py-2 pr-3 font-mono font-semibold tracking-wide text-slate-900">
+                      {a.pin}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="mt-4 space-y-3 md:hidden">
+            {annotators.map((a) => (
+              <div
+                key={a.id}
+                className="rounded-xl border border-indigo-100 bg-white/80 p-4"
+              >
+                <p className="font-semibold text-slate-900">
+                  {cleanDisplayName(a.display_name)}
+                </p>
+                <p className="mt-1 font-mono text-sm text-slate-700">
+                  {a.login_id}
+                </p>
+                <div className="mt-2">
+                  <span className="font-mono text-lg font-semibold tracking-wide text-slate-900">
+                    {a.pin}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
       ) : (
         <p className="mt-4 text-sm text-slate-500">No annotators yet.</p>
       )}
