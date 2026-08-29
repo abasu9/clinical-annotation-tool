@@ -22,9 +22,7 @@ import AnnotationsViewer from "./AnnotationsViewer";
 import AnnotatorManager from "./AnnotatorManager";
 import RatingsViewer from "./RatingsViewer";
 import DashboardStatCards from "./DashboardStatCards";
-import AnnotationBreakdown, {
-  sumAnnotationBreakdown,
-} from "./AnnotationBreakdown";
+import AnnotationBreakdown from "./AnnotationBreakdown";
 import { adminCard, btnPrimary, inputClass } from "../lib/ui";
 
 interface Props {
@@ -44,15 +42,6 @@ const ADMIN_SECTIONS: {
   { id: "annotators", label: "Annotators", description: "Accounts and PINs" },
   { id: "ratings", label: "Ratings", description: "IAA export and review" },
 ];
-
-function datasetCompletionPct(
-  p: DatasetProgress | undefined,
-  total: number
-): number {
-  if (!p || total === 0) return 0;
-  const done = p.submitted + p.skipped + p.out_of_expertise;
-  return Math.round((done / total) * 100);
-}
 
 export default function AdminPanel({ onBack, backLabel = "Back" }: Props) {
   const [datasets, setDatasets] = useState<Dataset[]>([]);
@@ -220,11 +209,6 @@ export default function AdminPanel({ onBack, backLabel = "Back" }: Props) {
       setError(e.message ?? "Export failed.");
     }
   };
-
-  const breakdownTotals = useMemo(
-    () => sumAnnotationBreakdown(progress),
-    [progress]
-  );
 
   const activeSection = ADMIN_SECTIONS.find((s) => s.id === activeTab);
 
@@ -404,52 +388,28 @@ export default function AdminPanel({ onBack, backLabel = "Back" }: Props) {
                 ]}
               />
 
-              <div className={`${adminCard} mb-6 px-4 py-3`}>
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  All datasets
-                </p>
-                <AnnotationBreakdown
-                  progress={{
-                    total_samples: summary.totalSamples,
-                    submitted: summary.submitted,
-                    draft: breakdownTotals.draft,
-                    skipped: breakdownTotals.skipped,
-                    out_of_expertise: breakdownTotals.out_of_expertise,
-                    remaining: summary.remaining,
-                    yes: breakdownTotals.yes,
-                    no: breakdownTotals.no,
-                  }}
-                  className="mt-2"
-                />
-              </div>
-
               <div className={`${adminCard} mb-6`}>
                 <h4 className="text-lg font-semibold text-slate-800">
                   Dataset progress
                 </h4>
-                <p className="mt-1 text-sm text-slate-500">
-                  Completion across all imported datasets.
-                </p>
                 {datasets.length === 0 ? (
-                  <p className="mt-4 text-sm text-slate-500">
+                  <p className="mt-3 text-sm text-slate-500">
                     No datasets imported yet.
                   </p>
                 ) : (
-                  <ul className="mt-4 space-y-3">
+                  <ul className="mt-3 divide-y divide-indigo-100/80">
                     {datasets.map((d) => {
                       const p = progress[d.id];
-                      const pct = datasetCompletionPct(p, d.total_samples);
+                      const submitted = p?.submitted ?? 0;
+                      const remaining = p?.remaining ?? d.total_samples;
                       return (
-                        <li
-                          key={d.id}
-                          className="rounded-xl border border-indigo-100 bg-white/80 px-4 py-3"
-                        >
-                          <div className="flex flex-wrap items-start justify-between gap-2">
+                        <li key={d.id} className="py-3 first:pt-0 last:pb-0">
+                          <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
                             <div className="min-w-0">
-                              <p className="font-semibold text-slate-900">
+                              <p className="text-sm font-semibold text-slate-900">
                                 {d.name}
                               </p>
-                              <p className="mt-0.5 text-xs text-slate-500">
+                              <p className="text-xs text-slate-500">
                                 {labelForAnnotatorLogin(
                                   d.assigned_annotator_id,
                                   annotators
@@ -457,65 +417,22 @@ export default function AdminPanel({ onBack, backLabel = "Back" }: Props) {
                                 · {d.total_samples} samples
                               </p>
                             </div>
-                            <span className="text-sm font-semibold tabular-nums text-indigo-700">
-                              {pct}%
-                            </span>
+                            <p className="shrink-0 text-xs text-slate-600">
+                              <span className="font-semibold text-emerald-700">
+                                {submitted}
+                              </span>{" "}
+                              submitted ·{" "}
+                              <span className="font-semibold text-indigo-700">
+                                {remaining}
+                              </span>{" "}
+                              remaining
+                            </p>
                           </div>
-                          <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-100 ring-1 ring-slate-200">
-                            <div className="flex h-full">
-                              {p && d.total_samples > 0 ? (
-                                <>
-                                  <div
-                                    className="h-full bg-emerald-500"
-                                    style={{
-                                      width: `${(p.yes / d.total_samples) * 100}%`,
-                                    }}
-                                    title={`Yes: ${p.yes}`}
-                                  />
-                                  <div
-                                    className="h-full bg-sky-500"
-                                    style={{
-                                      width: `${(p.no / d.total_samples) * 100}%`,
-                                    }}
-                                    title={`No: ${p.no}`}
-                                  />
-                                  <div
-                                    className="h-full bg-amber-400"
-                                    style={{
-                                      width: `${(p.draft / d.total_samples) * 100}%`,
-                                    }}
-                                    title={`Drafted: ${p.draft}`}
-                                  />
-                                  <div
-                                    className="h-full bg-orange-400"
-                                    style={{
-                                      width: `${(p.skipped / d.total_samples) * 100}%`,
-                                    }}
-                                    title={`Skipped: ${p.skipped}`}
-                                  />
-                                  <div
-                                    className="h-full bg-violet-500"
-                                    style={{
-                                      width: `${
-                                        (p.out_of_expertise / d.total_samples) * 100
-                                      }%`,
-                                    }}
-                                    title={`Out of expertise: ${p.out_of_expertise}`}
-                                  />
-                                </>
-                              ) : (
-                                <div
-                                  className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 transition-all"
-                                  style={{ width: `${pct}%` }}
-                                />
-                              )}
-                            </div>
-                          </div>
-                          <AnnotationBreakdown progress={p} className="mt-2" />
-                          <p className="mt-1.5 text-xs text-slate-500">
-                            Remaining {p?.remaining ?? d.total_samples} · Submitted{" "}
-                            {p?.submitted ?? 0}
-                          </p>
+                          <AnnotationBreakdown
+                            variant="compact"
+                            progress={p}
+                            className="mt-2"
+                          />
                         </li>
                       );
                     })}
@@ -746,22 +663,16 @@ export default function AdminPanel({ onBack, backLabel = "Back" }: Props) {
             <div className="space-y-3 lg:hidden">
               {datasets.map((d) => {
                 const p = progress[d.id];
-                const pct = datasetCompletionPct(p, d.total_samples);
                 return (
                   <div
                     key={d.id}
                     className="rounded-xl border border-indigo-100 bg-white/80 p-4"
                   >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <p className="font-semibold text-slate-900">{d.name}</p>
-                        <p className="mt-0.5 text-xs text-slate-500">
-                          {d.uploaded_filename ?? "No file name"}
-                        </p>
-                      </div>
-                      <span className="shrink-0 text-sm font-semibold text-indigo-700">
-                        {pct}%
-                      </span>
+                    <div>
+                      <p className="font-semibold text-slate-900">{d.name}</p>
+                      <p className="mt-0.5 text-xs text-slate-500">
+                        {d.uploaded_filename ?? "No file name"}
+                      </p>
                     </div>
                     <div className="mt-3">
                       <label className="text-xs font-medium text-slate-600">
