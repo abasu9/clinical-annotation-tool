@@ -42,11 +42,16 @@ export const IAA_ANNOTATORS: IaaAnnotator[] = [
 
 /** Dataset names included in the IAA rating pool */
 export const IAA_INCLUDED_DATASET_NAMES = [
-  "Dr Naafila pilot study",
-  "Dr Chadda pilot study",
-  "Dr Sanchez pilot study",
-  "Dr Saja pilot study",
-  "Dr Wesley pilot study",
+  // "Dr Naafila pilot study",
+  // "Dr Chadda pilot study",
+  // "Dr Sanchez pilot study",
+  // "Dr Saja pilot study",
+  // "Dr Wesley pilot study",
+  "pilot_batch_two_dr_sanchez",
+  "pilot_batch_two_dr_saja",
+  "pilot_batch_two_dr_naafila",
+  "pilot_batch_two_dr_chadda",
+
 ] as const;
 
 /** Explicitly excluded (never load for rating) */
@@ -166,3 +171,4 @@ export function clearIaaPinUnlocks() {
     /* ignore */
   }
 }
+
